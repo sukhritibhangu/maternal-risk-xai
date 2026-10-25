@@ -53,3 +53,23 @@ Keep ONE worker (the knowledge base is held in memory). Uploaded books live in D
 ## Where the thresholds come from
 Every rule in `features.py` carries its source (shown in the app next to each flag). Only values read on WHO or government pages are kept.
 Removed for lack of a verified source: fever cutoffs, random sugar below 70 and 140 to 199, heart rate above 100, age rules, history rules.
+
+## Assessment workspace and evidence links
+Results are organized into Overview, Guidance, and Model details. Critical rule alerts stay above those views.
+Guidance highlights quote the first sentence of each selected passage. Open a numbered citation to read the full
+passage, its source label, and its admin verification status. The same source numbers are used by the optional
+Gemini summary. Citation checks reject missing or unknown references; they do not establish that generated claims
+are factually supported, so the source text remains available for review.
+
+Retrieval requires a lexical match before a tag bonus can help a passage. Recognized feature tags keep driver
+guidance separate from general-care guidance; untagged documents can still match by text. Selection diversifies
+matches, suppresses exact duplicate text within a search, bounds long paragraphs to 165-word chunks, and uses
+stable passage IDs. Flagged groups remain visible when matching evidence is missing. Re-ranking recomputes the
+final exclusions before the general-care search.
+
+The form shows loading and request-error states, prevents repeated submissions while busy, and marks results
+as outdated after inputs change. Tree counts use the loaded model's returned outputs rather than a fixed label.
+
+## Regression checks
+Run `python -m unittest discover -s . -p 'test_*.py' -v` from the project directory.
+The retrieval checks use small synthetic documents and mocked Gemini responses, not patient records or a live API.

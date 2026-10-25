@@ -81,6 +81,21 @@ input.t,textarea.t,select.t{font:inherit;border:1px solid var(--line);border-rad
 .err{color:var(--up);font-size:13.5px}
 .gbar{display:grid;grid-template-columns:170px 1fr 1fr;gap:6px 14px;align-items:center;font-size:13.5px}
 .gbar .b{height:14px;border-radius:2px;background:var(--teal)}.gbar .b.g{background:var(--muted);opacity:.55}
+
+/* Assessment workspace */
+:root{--r:14px;--bg:#f5f7fa;--ink:#172d38;--teal:#106a70;--teal-bg:#e8f4f2;--line:#dfe7ec}
+header{padding:20px 32px;gap:18px;box-shadow:0 3px 18px #10222b05}
+header h1{letter-spacing:-.04em;font-size:23px}header h1:before{content:"+";display:inline-grid;place-items:center;width:34px;height:34px;background:var(--teal);color:white;border-radius:11px;margin-right:10px}
+nav{background:var(--bg);padding:4px;border-radius:12px}nav button{font-size:13px}
+main{max-width:1440px;padding:28px 32px 64px}.intro{margin:0 0 24px}.eyebrow{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:var(--teal);font-weight:700;margin:0 0 8px}.intro h2{font-size:30px;letter-spacing:-.04em;margin-bottom:5px}.intro p{margin:0;color:var(--muted);max-width:750px}
+.grid{grid-template-columns:350px minmax(0,1fr);gap:24px}.panel{padding:24px;box-shadow:0 4px 22px #10222b04;min-width:0}#form{position:sticky;top:20px}#form h2{font-size:19px}fieldset{margin-bottom:20px}legend{padding-top:8px;margin-bottom:10px}.inp{border-radius:8px}.inp input{padding:8px}.f{margin-bottom:8px}.btn{transition:background .15s,transform .15s}.btn:hover{filter:brightness(.96)}.btn:disabled{opacity:.6;cursor:wait}.btn.p{padding:13px}.btn.s{border-radius:8px}.empty-state{padding:48px 30px;text-align:left}.empty-state h2{font-size:24px;letter-spacing:-.03em}.empty-state .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:28px}.step{background:var(--bg);padding:18px;border-radius:12px}.step strong{display:block;font-size:13px;margin:8px 0}.step p{font-size:12px;margin:0;color:var(--muted)}.step span{color:var(--teal);font-weight:700}
+.result-nav{display:flex;gap:5px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:5px;flex-wrap:wrap}.result-nav button{flex:1;padding:11px 14px;border:0;background:transparent;border-radius:8px;color:var(--muted);font:inherit;font-size:13px;cursor:pointer}.result-nav button[aria-selected=true]{background:var(--teal-bg);color:var(--teal);font-weight:700}.result-view{display:flex;flex-direction:column;gap:16px}.result-view[hidden]{display:none}.hero{align-items:center}.big{font-size:72px}.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}.stat{padding:12px;background:var(--bg);border-radius:10px}.stat b{display:block;font-size:21px}.stat span{font-size:11px;color:var(--muted)}.forest{margin-top:22px}.alert{padding:18px 20px}.alert a,a{color:var(--teal)}.stale{padding:12px 16px;background:var(--amber-bg);color:var(--amber);border-radius:10px;font-size:13px}.guidance-card{padding:20px}.guidance-card h3{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:17px}.guidance-card .why{font-size:13px;color:var(--muted);margin:8px 0 14px}.highlights{padding-left:20px;margin:12px 0}.highlights li{margin-bottom:10px;line-height:1.65}.citation{display:inline-block;color:var(--teal);background:var(--teal-bg);font-size:11px;padding:0 6px;border-radius:4px;text-decoration:none;font-weight:700;white-space:nowrap}.evidence{margin-top:15px;border-top:1px solid var(--line);padding-top:12px}.evidence summary{cursor:pointer;color:var(--teal);font-size:13px;font-weight:600}.pass{max-width:none;scroll-margin-top:20px;overflow-wrap:anywhere}.pass:target{background:var(--teal-bg)}.pass .src{align-items:start}.evidence-meta{font-size:11px;color:var(--muted);margin:6px 0}.guidance-status{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}.source-index{display:grid;gap:6px}.source-index a{font-size:12px;overflow-wrap:anywhere}.table-wrap{overflow-x:auto}td,th{min-width:100px}.gbar{grid-template-columns:minmax(110px,170px) 1fr 1fr}.kb{padding:20px 0}.err:empty{display:none}.print-button{margin-left:auto}.source-gap{font-size:13px;color:var(--amber);background:var(--amber-bg);padding:12px;border-radius:8px}
+@media(prefers-color-scheme:dark){:root{--bg:#101b22;--ink:#e6eef1;--teal:#71ccd0;--teal-bg:#18383d;--line:#2a3c46}header h1:before{color:#10222b}}
+@media(max-width:1050px){.grid{grid-template-columns:310px minmax(0,1fr)}main{padding:20px}.panel{padding:18px}.shap{grid-template-columns:120px 1fr 65px}.stat-grid{gap:6px}.big{font-size:58px}}
+@media(max-width:850px){.grid{grid-template-columns:1fr}#form{position:static}header{padding:18px 20px}header .note{display:none}nav{margin-left:0;width:100%}nav button{flex:1;padding:9px 6px}main{padding:20px 14px}.intro h2{font-size:25px}.empty-state .steps{grid-template-columns:1fr}.hero{gap:12px}.shap{grid-template-columns:minmax(90px,130px) 1fr 65px}.kb{grid-template-columns:1fr}.print-button{display:none}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+@media print{header,nav,#form,.intro,.result-nav,.print-button,.stale{display:none!important}.grid{display:block}.result-view[hidden]{display:flex!important}.panel,.card{box-shadow:none;break-inside:avoid}.tab:not(.on){display:none}main{padding:0}.evidence{display:block}body{background:white;color:black}}
+
 </style>
 </head>
 <body>
@@ -95,16 +110,17 @@ input.t,textarea.t,select.t{font:inherit;border:1px solid var(--line);border-rad
 </header>
 <main>
 <section id="assess" class="tab on">
+  <div class="intro"><p class="eyebrow">Maternal health workspace</p><h2>Understand the estimate. See the evidence.</h2><p>Review patient inputs, explore the model’s reasoning, and read guidance linked to its source passages.</p></div>
   <div class="grid">
     <form class="panel" id="form" autocomplete="off">
       <h2>Patient details</h2>
-      <p class="sub">Enter the 14 values the model was trained on. Nothing is stored.</p>
+      <p class="sub">Complete the 14 model inputs. Assessments are not saved by this application. Example profiles are for demonstration.</p>
       <div class="presets" id="presets"></div>
       <div id="fields"></div>
       <button class="btn p" type="submit">Assess risk</button>
       <p class="err" id="ferr" role="alert"></p>
     </form>
-    <div class="col" id="out"><div class="panel empty">Enter values and select <b>Assess risk</b> to see the estimate, why the model gave it, and what could lower it.</div></div>
+    <div class="col" id="out" aria-live="polite"><div class="panel empty-state"><p class="eyebrow">Start an assessment</p><h2>From measurements to understanding</h2><p class="sub">Enter a profile or select a demonstration example. Your results will keep model estimates, rule alerts, and source guidance clearly labelled.</p><div class="steps"><div class="step"><span>01</span><strong>Assess</strong><p>Get the forest’s estimated high-risk class probability.</p></div><div class="step"><span>02</span><strong>Understand</strong><p>See which inputs move this prediction up or down.</p></div><div class="step"><span>03</span><strong>Review guidance</strong><p>Inspect relevant passages and their verification status.</p></div></div></div></div>
   </div>
 </section>
 
@@ -113,7 +129,7 @@ input.t,textarea.t,select.t{font:inherit;border:1px solid var(--line);border-rad
 <section id="kb" class="tab">
   <div class="panel" id="kbLogin">
     <h2>Admin sign-in</h2>
-    <p class="sub">Only admins can add, verify, disable or delete the guidance used for suggestions. The token is printed in the server console when it starts.</p>
+    <p class="sub">Only admins can add, verify, disable or delete the guidance used for suggestions. Use the ADMIN_TOKEN configured on your server.</p>
     <div class="row"><input class="t" id="tok" type="password" placeholder="Admin token" style="max-width:320px" aria-label="Admin token"><button class="btn" id="loginBtn">Sign in</button></div>
     <p class="err" id="lerr" role="alert"></p>
   </div>
@@ -139,7 +155,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 
 // form
 async function init(){
-  META=await (await fetch('/api/meta')).json();
+  META=await api('/api/meta');
   let h='',g='';
   for(const f of META.features){
     if(f.group!==g){ if(g)h+='</fieldset>'; h+=`<fieldset><legend>${esc(f.group)}</legend>`; g=f.group }
@@ -149,14 +165,29 @@ async function init(){
   $('#presets').innerHTML=Object.keys(PRESETS).map(k=>`<button type="button" class="btn s" data-p="${esc(k)}">${esc(k)}</button>`).join('');
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{for(const[k,v]of Object.entries(PRESETS[b.dataset.p]))$('#i_'+k).value=v;$('#form').requestSubmit()});
 }
+async function api(url, options={}){
+  const controller=new AbortController(), timer=setTimeout(()=>controller.abort(),90000);
+  try{
+    const r=await fetch(url,{...options,signal:controller.signal});
+    const d=await r.json().catch(()=>({error:'The server returned an unreadable response.'}));
+    if(!r.ok)throw new Error(d.error||`Request failed (${r.status}).`);
+    return d;
+  }catch(e){if(e.name==='AbortError')throw new Error('This request timed out. Please try again.');throw e}
+  finally{clearTimeout(timer)}
+}
+let hasResult=false;
+$('#form').addEventListener('input',()=>{
+  if(hasResult&&!$('#stale'))$('#out').insertAdjacentHTML('afterbegin','<div class="stale" id="stale" role="status">Inputs changed. Assess again to update these results.</div>');
+});
 $('#form').onsubmit=async e=>{
-  e.preventDefault(); $('#ferr').textContent='';
+  e.preventDefault(); if(!META)return; $('#ferr').textContent='';
+  const button=$('#form button[type=submit]'); if(button.disabled)return;
   const body={}; META.features.forEach(f=>body[f.name]=$('#i_'+f.name).value); body.trimester=$('#i_trimester').value;
-  $('#out').style.opacity=.5;
-  const r=await fetch('/api/assess',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-  const d=await r.json(); $('#out').style.opacity=1;
-  if(!r.ok){$('#ferr').textContent=d.error;return}
-  render(d);
+  button.disabled=true;button.textContent='Assessing and finding guidance…';$('#out').setAttribute('aria-busy','true');
+  $('#form').querySelectorAll('input,select,[data-p]').forEach(el=>el.disabled=true);
+  try{const d=await api('/api/assess',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});render(d);hasResult=true;}
+  catch(e){$('#ferr').textContent=e.message||'Could not reach the server. Please try again.';}
+  finally{button.disabled=false;button.textContent='Assess risk';$('#out').setAttribute('aria-busy','false');$('#form').querySelectorAll('input,select,[data-p]').forEach(el=>el.disabled=false)}
 };
 
 // results
@@ -182,34 +213,65 @@ function render(d){
   $('#out').innerHTML=`
   ${crit.length?`<div class="alert" role="alert"><b>Urgent: seek clinical assessment today</b>${crit.map(f=>esc(f.text)+' (source: <a href="'+esc(f.source_url)+'" target="_blank" rel="noopener">'+esc(f.source_name)+'</a>)').join('; ')}. This rule-based alert applies regardless of the model's estimate.</div>`:''}
   <div class="panel"><div class="hero"><div><div class="big">${pct(d.probability)}</div></div><div><span style="font-weight:600">Estimated probability of the high-risk class</span><span class="band ${d.band}">${d.band}</span></div></div>
-    <div class="forest" role="img" aria-label="${hiTrees} of 100 trees vote high risk">${strip}</div>
-    <div class="legend"><span><em style="background:var(--down)"></em>tree leans lower risk</span><span><em style="background:var(--up)"></em>tree leans high risk</span><span><b>${hiTrees} of 100</b> trees lean high risk; the forest averages them.</span></div>
+    <div class="forest" role="img" aria-label="${hiTrees} of ${d.votes.length} trees vote high risk">${strip}</div>
+    <div class="legend"><span><em style="background:var(--down)"></em>tree leans lower risk</span><span><em style="background:var(--up)"></em>tree leans high risk</span><span><b>${hiTrees} of ${d.votes.length}</b> trees lean high risk; the forest averages them.</span></div>
     <p style="margin:12px 0 0">${esc(d.narrative)}</p>
-    <p class="note">The percentage is the forest's vote share, not a calibrated clinical probability. Bands are display conventions.</p></div>
-  <div class="panel"><h2>Why the model said this</h2><p class="sub">SHAP: how many percentage points each input moved this estimate away from the model's baseline of ${pct(d.local.base)}. They add up exactly to ${pct(d.probability)}.</p>
+    <p class="note">The percentage averages the trees’ class probabilities. It is not a calibrated clinical probability. Bands are display conventions.</p></div>
+  <div class="panel"><h2>Why the model said this</h2><p class="sub">SHAP: how many percentage points each input moved this estimate away from the model's baseline of ${pct(d.local.base)}. Baseline plus all effects approximately equals ${pct(d.probability)}.</p>
     <div class="shap">${shapRows}</div>${hidden?`<p class="note">${hidden} more inputs had almost no effect here.</p>`:''}</div>
-  <div class="panel"><h2>What would change it</h2><p class="sub">The model re-run with out-of-range values moved to typical healthy values. This shows how the model responds; it is not a treatment target.</p>
-    ${cfRows?`<table><thead><tr><th>Area</th><th>Change tested</th><th>Estimate afterwards</th><th>Smallest change to drop below 50%</th></tr></thead><tbody>${cfRows}</tbody></table><p class="note">All areas together: ${pct(cf.all_normalised)}.</p><p class="note">Where the targets come from: ${[...new Set(cf.rows.flatMap(r=>Object.entries(r.changes).map(([k,v])=>FL(k).label+': '+v.note)))].map(esc).join('. ')}.</p>`:'<p class="note">No out-of-range vitals or labs were found, so there is nothing to change.</p>'}</div>
+  <div class="panel"><h2>What would change it</h2><p class="sub">The model re-run with flagged measurements moved to selected reference values. This shows how the model responds; it is not a treatment target.</p>
+    ${cfRows?`<div class="table-wrap"><table><thead><tr><th>Area</th><th>Change tested</th><th>Estimate afterwards</th><th>Smallest change to drop below 50%</th></tr></thead><tbody>${cfRows}</tbody></table></div><p class="note">All areas together: ${pct(cf.all_normalised)}.</p><p class="note">Where the targets come from: ${[...new Set(cf.rows.flatMap(r=>Object.entries(r.changes).map(([k,v])=>FL(k).label+': '+v.note)))].map(esc).join('. ')}.</p>`:'<p class="note">No modifiable measurements triggered the implemented rules, so no reference-value tests were selected.</p>'}</div>
   <div class="panel"><h2>How sensitive is it?</h2><p class="sub">Predicted risk as one input changes and all others stay as entered. The dot is this patient; the dashed line is 50%.</p><div class="ice">${ice}</div></div>
-  <div class="panel"><h2>Suggested next steps</h2>${suggest(d.suggestions)}</div>`;
+  <div class="panel"><h2>Guidance and supporting evidence</h2><p class="sub">Source excerpts matched to this assessment. Review these with a clinician.</p>${suggest(d.suggestions)}</div>`;
+  const panels=[...$('#out').children].filter(x=>x.classList.contains('panel'));
+  panels[0].insertAdjacentHTML('beforeend',`<div class="stat-grid"><div class="stat"><b>${d.flags.length}</b><span>Rule alerts</span></div><div class="stat"><b>${d.suggestions.cards.length}</b><span>Guidance areas</span></div><div class="stat"><b>${new Set(d.suggestions.cards.flatMap(c=>c.passages.map(p=>p.doc_id))).size}</b><span>Matched documents</span></div></div>`);
+  const nav=document.createElement('div');nav.className='result-nav';nav.setAttribute('role','tablist');nav.setAttribute('aria-label','Assessment results');
+  nav.innerHTML=['Overview','Guidance','Model details'].map((label,i)=>`<button id="result-tab-${i}" role="tab" aria-controls="result-view-${i}" aria-selected="${i===0}" tabindex="${i===0?0:-1}">${label}</button>`).join('');
+  $('#out').insertBefore(nav,panels[0]);
+  [[panels[0],panels[1]],[panels[4]],[panels[2],panels[3]]].forEach((items,i)=>{
+    const view=document.createElement('div');view.className='result-view';view.id='result-view-'+i;view.setAttribute('role','tabpanel');view.setAttribute('aria-labelledby','result-tab-'+i);view.hidden=i!==0;items.forEach(x=>view.append(x));$('#out').append(view);
+  });
+  const tabs=[...nav.querySelectorAll('button')];
+  function select(i){tabs.forEach((b,j)=>{b.setAttribute('aria-selected',i===j);b.tabIndex=i===j?0:-1;$('#result-view-'+j).hidden=i!==j})}
+  tabs.forEach((b,i)=>{b.onclick=()=>select(i);b.onkeydown=e=>{let j;if(e.key==='ArrowRight')j=(i+1)%3;if(e.key==='ArrowLeft')j=(i+2)%3;if(e.key==='Home')j=0;if(e.key==='End')j=2;if(j!==undefined){e.preventDefault();select(j);tabs[j].focus()}}});
+  wireEvidence();
+}
+
+const safeURL=value=>{try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}};
+const citeText=text=>esc(text).replace(/\[(S\d+)\]/g,'<a class="citation" href="#evidence-$1">[$1]</a>');
+function wireEvidence(){
+  $('#out').querySelectorAll('a.citation,.source-index a').forEach(a=>a.onclick=e=>{
+    const target=document.getElementById(a.hash.slice(1));if(!target)return;
+    e.preventDefault();const details=target.closest('details');if(details)details.open=true;
+    target.scrollIntoView({behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'instant':'smooth',block:'center'});target.tabIndex=-1;target.focus({preventScroll:true});
+  });
 }
 function suggest(s){
-  const all=s.cards.flatMap(c=>c.passages), unv=all.some(p=>!p.verified);
-  let h=unv?`<div class="banner" style="margin:8px 0 12px">Some guidance below comes from starter content that has not been clinically verified. An admin can verify or replace it in the Knowledge base tab.</div>`:'';
-  if(s.ai&&s.ai.rerank)h+=`<p class="note" style="margin:0 0 10px">The order of the passages was chosen with help from Gemini. It can only pick from approved passages; the text is unchanged.</p>`;
-  if(s.summary)h+=`<div class="card" style="margin-bottom:12px"><h3>Plain-language summary</h3><p style="margin:0;max-width:78ch;white-space:pre-wrap">${esc(s.summary)}</p><p class="note">Written by an AI (Gemini) from the passages below only. Check against the sources.</p></div>`;
-  h+='<div class="col">'+s.cards.map(c=>`<div class="card"><h3>${esc(c.group)} <span class="chip ${c.level}">${c.level==='info'?'for awareness':c.level}</span></h3>
-    ${c.reasons.length?`<ul>${c.reasons.map(r=>`<li>${esc(r.text)}<div class="note">Source: <a href="${esc(r.source_url)}" target="_blank" rel="noopener">${esc(r.source_name)}</a>${r.note?' · '+esc(r.note):''}</div></li>`).join('')}</ul>`:''}
-    ${c.targets.length?`<div class="note">Typical target: ${esc(c.targets.join('; '))}</div>`:''}
-    ${c.shap>0.005?`<div class="note">Model attributes ${pts(c.shap)} of this estimate to this area.</div>`:''}
-    ${c.passages.length?c.passages.map(p=>`<div class="pass">${p.text.split(/\n\n/).map(x=>`<p>${esc(x)}</p>`).join('')}<div class="src"><span class="chip ${p.verified?'ver':'unv'}">${p.verified?'Verified source':'Unverified starter'}</span><span>${esc(p.title)} · ${esc(p.source)}</span></div></div>`).join(''):'<p class="note">No approved guidance covers this yet. Ask an admin to add a source for it.</p>'}</div>`).join('')+'</div>';
-  if(!s.cards.length)h+='<p class="note">No suggestions were triggered, or no approved sources are enabled.</p>';
+  const all=s.cards.flatMap(c=>c.passages), unique=[...new Map(all.map(p=>[p.citation,p])).values()];
+  const verified=unique.filter(p=>p.verified).length;
+  let h=`<div class="guidance-status"><span class="chip info">${unique.length} matched passages</span><span class="chip ver">${verified} admin-verified</span><span class="chip ${s.only_verified?'ver':'unv'}">${s.only_verified?'Verified sources only':'Includes unverified sources'}</span></div>`;
+  if(all.some(p=>!p.verified))h+='<div class="banner">Some excerpts have not been verified by an administrator. Source matching does not establish clinical correctness.</div>';
+  if(s.ai?.rerank)h+='<p class="note">Gemini helped select passages from the local search results. Source text is unchanged.</p>';
+  if(s.summary)h+=`<div class="card" style="margin:16px 0"><h3>Summary from the sources</h3><p style="white-space:pre-wrap">${citeText(s.summary)}</p><p class="note">AI-generated. Citation links identify the supplied passages; review the wording against them.</p></div>`;
+  else h+=`<p class="note">${s.summary_status==='unavailable'?'The AI summary was unavailable or did not pass citation checks.':'Showing source excerpts directly.'} The highlights below quote the retrieved text.</p>`;
+  h+='<div class="col">'+s.cards.map(c=>`<article class="card guidance-card"><h3>${esc(c.group)} <span class="chip ${esc(c.level)}">${c.level==='info'?'Model context':esc(c.level)+' rule alert'}</span></h3>
+    <p class="why">${c.reasons.length?'Included because a coded measurement rule was triggered.':c.shap>0?'Included because this area increased the model estimate.':'General information matched from the knowledge base.'}</p>
+    ${c.reasons.length?`<ul>${c.reasons.map(r=>`<li>${esc(r.text)}<div class="note">${safeURL(r.source_url)?`<a href="${esc(safeURL(r.source_url))}" target="_blank" rel="noopener">${esc(r.source_name)}</a>`:esc(r.source_name)}${r.note?' · '+esc(r.note):''}</div></li>`).join('')}</ul>`:''}
+    ${c.shap>0.005?`<p class="note">Combined model effect: ${pts(c.shap)}. This is separate from rule severity.</p>`:''}
+    ${c.highlights?.length?`<ul class="highlights">${c.highlights.map(v=>`<li>${esc(v.text)} <a class="citation" href="#evidence-${esc(v.citation)}">[${esc(v.citation)}]</a></li>`).join('')}</ul>`:'<p class="source-gap">No matching active source passage was found for this area. The rule alert still applies. Ask an administrator to add relevant guidance.</p>'}
+    ${c.passages.length?`<details class="evidence"><summary>Read ${c.passages.length} supporting passage${c.passages.length===1?'':'s'}</summary>${c.passages.map(p=>`<div class="pass" id="evidence-${esc(p.citation)}"><div class="src"><b>[${esc(p.citation)}] ${esc(p.title)}</b><span class="chip ${p.verified?'ver':'unv'}">${p.verified?'Admin-verified':'Unverified'}</span></div><p class="evidence-meta">${safeURL(p.source)?`<a href="${esc(safeURL(p.source))}" target="_blank" rel="noopener">Open source</a>`:esc(p.source)}${p.matched_tags?.length?' · Matched tags: '+esc(p.matched_tags.join(', ')):''}</p><p>${esc(p.text)}</p></div>`).join('')}</details>`:''}</article>`).join('')+'</div>';
+  if(!s.cards.length)h+='<p class="source-gap">No guidance areas have matching evidence. This does not establish an absence of health risks.</p>';
+  if(unique.length)h+=`<details class="evidence"><summary>Source index</summary><div class="source-index">${unique.map(p=>`<a href="#evidence-${esc(p.citation)}">[${esc(p.citation)}] ${esc(p.title)}</a>`).join('')}</div></details>`;
   return h;
 }
 
 // global
 async function loadGlobal(){
-  const g=await (await fetch('/api/global')).json(), mx=Math.max(...g.rows.map(r=>r.mean_abs_shap)),mi=Math.max(...g.rows.map(r=>r.impurity));
+  $('#gl').innerHTML='<p class="empty">Loading model explanation…</p>';
+  try{await loadGlobalContent()}catch(e){$('#gl').innerHTML='<h2>Could not load the model explanation</h2><p class="err">'+esc(e.message)+'</p><p class="note">Select this tab again to retry.</p>'}
+}
+async function loadGlobalContent(){
+  const g=await api('/api/global'), mx=Math.max(...g.rows.map(r=>r.mean_abs_shap)),mi=Math.max(...g.rows.map(r=>r.impurity));
   $('#gl').innerHTML=`<h2>What drives this model overall</h2><p class="sub">Two views of overall importance. Mean |SHAP| is the average effect on the estimate (percentage points). Impurity importance is the forest's internal split score.</p>
   ${g.source==='synthetic'?'<div class="banner" style="margin-bottom:12px">Computed on a synthetic reference population, because the training data was not provided. Treat as indicative. For exact figures, save your training features as model/background.csv and restart.</div>':''}
   <div class="gbar"><b>Input</b><b>Mean |SHAP|</b><b>Impurity importance</b>${g.rows.map(r=>`<span>${esc(r.label)}</span><div class="row" style="flex-wrap:nowrap"><div class="b" style="width:${r.mean_abs_shap/mx*80}%"></div><small>${(r.mean_abs_shap*100).toFixed(1)}</small></div><div class="row" style="flex-wrap:nowrap"><div class="b g" style="width:${r.impurity/mi*80}%"></div><small>${(r.impurity*100).toFixed(1)}%</small></div>`).join('')}</div>`;
@@ -217,10 +279,16 @@ async function loadGlobal(){
 
 // admin
 const H=()=>({'X-Admin-Token':TOKEN,'content-type':'application/json'});
-$('#loginBtn').onclick=async()=>{TOKEN=$('#tok').value;const r=await fetch('/api/admin/login',{method:'POST',headers:H()});
-  if(r.ok){sessionStorage.setItem('adm',TOKEN);loadKB()}else{$('#lerr').textContent='That token is not valid.'}};
+$('#loginBtn').onclick=async()=>{
+  TOKEN=$('#tok').value;$('#lerr').textContent='';$('#loginBtn').disabled=true;
+  try{await api('/api/admin/login',{method:'POST',headers:H()});sessionStorage.setItem('adm',TOKEN);await loadKB()}
+  catch(e){$('#lerr').textContent=e.message}finally{$('#loginBtn').disabled=false}
+};
 async function loadKB(){
-  const r=await fetch('/api/admin/kb',{headers:H()}); if(!r.ok){TOKEN='';sessionStorage.removeItem('adm');return}
+  try{await loadKBContent()}catch(e){$('#kbLogin').style.display='block';$('#lerr').textContent=e.message}
+}
+async function loadKBContent(){
+  const r=await fetch('/api/admin/kb',{headers:H()}); if(!r.ok){TOKEN='';sessionStorage.removeItem('adm');$('#kbLogin').style.display='block';$('#kbAdmin').style.display='none';$('#lerr').textContent='Your admin session is not valid. Sign in again.';return}
   const d=await r.json(); $('#kbLogin').style.display='none'; const A=$('#kbAdmin'); A.style.display='flex';
   A.innerHTML=`<div class="panel"><div class="row"><div><h2>Sources used for suggestions</h2><p class="sub" style="margin:0">${d.docs.length} documents, ${d.chunks} searchable passages in use.</p></div>
     <div class="col" style="margin-left:auto;gap:6px"><label class="row"><input type="checkbox" id="onlyv" ${d.settings.only_verified?'checked':''}> Only use verified sources</label>
@@ -243,7 +311,7 @@ async function loadKB(){
   $('#qb').onclick=async()=>{const r=await fetch('/api/admin/search',{method:'POST',headers:H(),body:JSON.stringify({query:$('#q').value})});const j=await r.json();
     $('#qr').innerHTML=j.results.length?j.results.map(p=>`<div class="pass"><p>${esc(p.text.slice(0,320))}…</p><div class="src"><span>${esc(p.title)}</span><span>score ${p.score.toFixed(2)}</span></div></div>`).join(''):'<p class="note">Nothing matched.</p>'};
 }
-init().then(()=>{ if(TOKEN)loadKB() });
+init().then(()=>{ if(TOKEN)loadKB() }).catch(e=>{$('#ferr').textContent='Could not load the application: '+e.message});
 </script>
 </body>
 </html>

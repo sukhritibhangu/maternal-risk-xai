@@ -81,6 +81,7 @@ def assess():
         probability=p, band=band(p), votes=xai.votes(v), local=local, flags=flags,
         narrative=narrative(p, local, flags), counterfactuals=xai.counterfactuals(v, flags),
         ice=xai.ice(v, top), suggestions=dict(cards=cards, summary=summary,
+                                              summary_status=("ready" if summary else "unavailable" if ai_on("ai_summary") else "off"),
                                               ai=dict(summary=bool(summary), rerank=any(c.get("ai_ranked") for c in cards)),
                                               only_verified=store.data["settings"]["only_verified"]))
 
