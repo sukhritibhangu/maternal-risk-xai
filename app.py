@@ -1,0 +1,151 @@
+"""Maternal risk XAI + admin-governed RAG. Run:  python app.py   ->  http://localhost:5000"""
+import hmac, io, os, secrets, warnings
+import joblib
+from flask import Flask, jsonify, request, send_from_directory
+from features import FEATURES, BY_NAME, flags_for
+from xai import Explainer, band, narrative
+from rag import KnowledgeStore, Retriever, build_cards, llm_summary
+
+warnings.filterwarnings("ignore")
+HERE = os.path.dirname(os.path.abspath(__file__))
+app = Flask(__name__, static_folder=os.path.join(HERE, "static"), static_url_path="/static")
+app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024
+
+model = joblib.load(os.path.join(HERE, "model", "random_forest_model.pkl"))
+bg = os.path.join(HERE, "model", "background.csv")  # optional: drop your training data here for true global SHAP
+xai = Explainer(model, bg if os.path.exists(bg) else None)
+store = KnowledgeStore()
+retriever = Retriever(store)
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or "mysecret123"  # fixed default; an ADMIN_TOKEN env var overrides it
+
+
+def admin_only(fn):
+    def w(*a, **k):
+        if not hmac.compare_digest(request.headers.get("X-Admin-Token", ""), ADMIN_TOKEN):
+            return jsonify(error="Admin token missing or wrong."), 401
+        return fn(*a, **k)
+    w.__name__ = fn.__name__
+    return w
+
+
+def parse_inputs(d):
+    v = {}
+    for f in FEATURES:
+        try:
+            x = float(d[f["name"]])
+        except (KeyError, TypeError, ValueError):
+            raise ValueError(f"{f['label']} is required and must be a number.")
+        if not f["min"] <= x <= f["max"]:
+            raise ValueError(f"{f['label']} must be between {f['min']} and {f['max']} {f['unit']}.")
+        v[f["name"]] = x
+    return v
+
+
+@app.get("/")
+def index():
+    return send_from_directory(app.static_folder, "index.html")
+
+
+@app.get("/api/meta")
+def meta():
+    return jsonify(features=FEATURES, decision_threshold=0.5, bands=[0.35, 0.65],
+                   llm=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"])
+
+
+@app.post("/api/assess")
+def assess():
+    body = request.get_json(force=True) or {}
+    try:
+        v = parse_inputs(body)
+    except ValueError as e:
+        return jsonify(error=str(e)), 400
+    try:  # optional, used ONLY by the anaemia rule (not a model input)
+        tri = int(body.get("trimester")) if str(body.get("trimester", "")).strip() in ("1", "2", "3") else None
+    except (TypeError, ValueError):
+        tri = None
+    local = xai.local(v)
+    p = local["prediction"]
+    flags = flags_for(v, tri)
+    top = [c["feature"] for c in local["contribs"][:4]]
+    cards = build_cards(flags, local["contribs"], retriever)
+    line = f"risk {p:.0%}; " + "; ".join(f["text"] for f in flags)
+    return jsonify(
+        probability=p, band=band(p), votes=xai.votes(v), local=local, flags=flags,
+        narrative=narrative(p, local, flags), counterfactuals=xai.counterfactuals(v, flags),
+        ice=xai.ice(v, top), suggestions=dict(cards=cards, summary=llm_summary(line, cards),
+                                              only_verified=store.data["settings"]["only_verified"]))
+
+
+@app.get("/api/global")
+def global_view():
+    return jsonify(xai.global_view())
+
+
+# ---------- admin
+@app.post("/api/admin/login")
+@admin_only
+def login():
+    return jsonify(ok=True)
+
+
+@app.get("/api/admin/kb")
+@admin_only
+def kb_list():
+    return jsonify(docs=store.data["docs"], settings=store.data["settings"], chunks=len(retriever.chunks))
+
+
+def _extract(file):
+    name, raw = file.filename.lower(), file.read()
+    if name.endswith(".pdf"):
+        from pypdf import PdfReader
+        return "\n\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(raw)).pages)
+    return raw.decode("utf-8", errors="ignore")
+
+
+@app.post("/api/admin/kb")
+@admin_only
+def kb_add():
+    f = request.form if request.files or request.form else (request.get_json(silent=True) or {})
+    text = f.get("text", "")
+    if "file" in request.files:
+        text = _extract(request.files["file"]) or text
+    title = f.get("title") or (request.files["file"].filename if "file" in request.files else "")
+    if not text.strip() or not title.strip():
+        return jsonify(error="A title and some text (or a .txt/.md/.pdf file) are required."), 400
+    tags = [t for t in str(f.get("tags", "")).split(",")] if not isinstance(f.get("tags"), list) else f["tags"]
+    d = store.add(title, f.get("source", "Admin upload"), tags, text, verified=str(f.get("verified", "")).lower() in ("1", "true", "on"))
+    retriever.rebuild()
+    return jsonify(d), 201
+
+
+@app.patch("/api/admin/kb/<doc_id>")
+@admin_only
+def kb_patch(doc_id):
+    d = store.update(doc_id, request.get_json(force=True))
+    retriever.rebuild()
+    return (jsonify(d), 200) if d else (jsonify(error="Not found"), 404)
+
+
+@app.delete("/api/admin/kb/<doc_id>")
+@admin_only
+def kb_del(doc_id):
+    ok = store.delete(doc_id); retriever.rebuild()
+    return (jsonify(ok=True), 200) if ok else (jsonify(error="Not found"), 404)
+
+
+@app.put("/api/admin/settings")
+@admin_only
+def settings():
+    store.set_settings(request.get_json(force=True)); retriever.rebuild()
+    return jsonify(store.data["settings"])
+
+
+@app.post("/api/admin/search")
+@admin_only
+def test_search():
+    q = (request.get_json(force=True) or {}).get("query", "")
+    return jsonify(results=retriever.search(q, k=4, min_score=0.02))
+
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 5000)), debug=False)

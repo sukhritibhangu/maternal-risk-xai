@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maternal risk lens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f3;--panel:#fff;--ink:#10222b;--muted:#5a6b75;--line:#d3dce1;--teal:#0e5c63;--teal-bg:#e2f0f1;--up:#b0243f;--up-bg:#fbe9ed;--down:#1d6fa5;--down-bg:#e3f0f8;--amber:#7a4f00;--amber-bg:#fff1cf;--r:6px}
+@media (prefers-color-scheme:dark){:root{--bg:#0d171c;--panel:#142229;--ink:#e6eef1;--muted:#93a6b0;--line:#27394342;--line:#2a3c46;--teal:#5cc1c9;--teal-bg:#173a3f;--up:#ff7d95;--up-bg:#3c1b25;--down:#6fb6ea;--down-bg:#17303f;--amber:#f0c36b;--amber-bg:#3a2d10}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 "Public Sans",system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;gap:24px;align-items:center;flex-wrap:wrap}
+header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:-.01em}
+nav{display:flex;gap:4px;margin-left:auto}
+nav button{background:none;border:0;padding:8px 14px;font:inherit;font-weight:500;color:var(--muted);border-radius:var(--r);cursor:pointer}
+nav button[aria-selected=true]{background:var(--teal-bg);color:var(--teal);font-weight:600}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+main{max-width:1280px;margin:0 auto;padding:20px 24px 60px}
+.tab{display:none}.tab.on{display:block}
+.grid{display:grid;grid-template-columns:330px 1fr;gap:20px;align-items:start}
+@media(max-width:920px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+h2{font-size:16px;margin:0 0 4px;font-weight:700}
+.sub{color:var(--muted);font-size:13px;margin:0 0 12px}
+fieldset{border:0;padding:0;margin:0 0 14px}
+legend{font-weight:600;font-size:13px;color:var(--teal);padding:0;margin-bottom:6px}
+.f{display:grid;grid-template-columns:1fr 112px;gap:8px;align-items:center;margin-bottom:6px}
+.f label{font-size:13.5px}
+.inp{display:flex;align-items:center;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);overflow:hidden}
+.inp input{width:100%;border:0;background:none;padding:6px 8px;font:inherit;color:var(--ink);text-align:right;min-width:0}
+.inp span{font-size:11.5px;color:var(--muted);padding-right:7px;white-space:nowrap}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.btn{font:inherit;font-weight:600;border-radius:var(--r);padding:8px 14px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+.btn.p{background:var(--teal);color:#fff;border-color:var(--teal);width:100%;padding:10px}
+@media (prefers-color-scheme:dark){.btn.p{color:#0d171c}}
+.btn.s{padding:4px 10px;font-weight:500;font-size:13px}
+.btn.d{color:var(--up)}
+.col{display:flex;flex-direction:column;gap:16px}
+.alert{border-left:4px solid var(--up);background:var(--up-bg);padding:12px 14px;border-radius:var(--r)}
+.alert b{display:block;margin-bottom:2px}
+.hero{display:grid;grid-template-columns:auto 1fr;gap:6px 24px;align-items:end}
+.big{font-size:56px;font-weight:700;line-height:1;letter-spacing:-.03em}
+.band{font-weight:600;font-size:14px;padding:2px 10px;border-radius:99px;display:inline-block;vertical-align:middle;margin-left:8px}
+.band.Lower{background:var(--down-bg);color:var(--down)}.band.Elevated{background:var(--amber-bg);color:var(--amber)}.band.High{background:var(--up-bg);color:var(--up)}
+.forest{display:flex;gap:2px;height:46px;align-items:flex-end;margin-top:10px}
+.forest i{flex:1;border-radius:1px;min-width:2px}
+.legend{display:flex;gap:16px;font-size:12.5px;color:var(--muted);margin-top:6px;flex-wrap:wrap}
+.legend em{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.shap{display:grid;grid-template-columns:minmax(120px,190px) 1fr 84px;gap:5px 10px;align-items:center;font-size:13.5px}
+.shap .lab small{display:block;color:var(--muted);font-size:12px}
+.axis{position:relative;height:22px}
+.axis:before{content:"";position:absolute;left:50%;top:0;bottom:0;border-left:1px solid var(--muted)}
+.axis b{position:absolute;top:3px;height:16px;border-radius:2px}
+.up{background:var(--up)}.dn{background:var(--down)}
+.num{text-align:right;font-weight:600;white-space:nowrap}.num.up,.num.dn{background:none}
+.num.up{color:var(--up)}.num.dn{color:var(--down)}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-weight:600;color:var(--muted);font-size:12.5px;border-bottom:1px solid var(--line);padding:6px 8px 6px 0}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line);vertical-align:top}
+.ice{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.ice svg{width:100%;height:auto;display:block}
+.ice p{margin:2px 0 0;font-size:13px;font-weight:600}
+.chip{font-size:12px;font-weight:600;border-radius:99px;padding:1px 9px;display:inline-block}
+.chip.critical,.chip.high{background:var(--up-bg);color:var(--up)}.chip.borderline{background:var(--amber-bg);color:var(--amber)}.chip.info{background:var(--teal-bg);color:var(--teal)}
+.chip.ver{background:var(--teal-bg);color:var(--teal)}.chip.unv{background:var(--amber-bg);color:var(--amber)}
+.card{border:1px solid var(--line);border-radius:var(--r);padding:14px;background:var(--panel)}
+.card h3{margin:0 0 4px;font-size:15px}
+.card ul{margin:4px 0 8px;padding-left:18px;font-size:13.5px}
+.pass{border-left:3px solid var(--teal);padding:2px 0 2px 12px;margin:10px 0;font-size:14px;max-width:78ch}
+.pass p{margin:0 0 6px}
+.src{font-size:12.5px;color:var(--muted);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.note{font-size:12.5px;color:var(--muted)}
+.banner{background:var(--amber-bg);color:var(--amber);padding:10px 14px;border-radius:var(--r);font-size:13.5px}
+.empty{color:var(--muted);padding:40px 10px;text-align:center}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input.t,textarea.t,select.t{font:inherit;border:1px solid var(--line);border-radius:var(--r);padding:7px 9px;background:var(--bg);color:var(--ink);width:100%}
+.kb{display:grid;grid-template-columns:1fr auto;gap:8px 14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.kb h4{margin:0;font-size:14.5px}
+.err{color:var(--up);font-size:13.5px}
+.gbar{display:grid;grid-template-columns:170px 1fr 1fr;gap:6px 14px;align-items:center;font-size:13.5px}
+.gbar .b{height:14px;border-radius:2px;background:var(--teal)}.gbar .b.g{background:var(--muted);opacity:.55}
+</style>
+</head>
+<body>
+<header>
+  <h1>Maternal risk lens</h1>
+  <span class="note">Decision support only. It does not diagnose and does not replace a clinician.</span>
+  <nav role="tablist">
+    <button role="tab" data-t="assess" aria-selected="true">Assess</button>
+    <button role="tab" data-t="model" aria-selected="false">How the model thinks</button>
+    <button role="tab" data-t="kb" aria-selected="false">Knowledge base</button>
+  </nav>
+</header>
+<main>
+<section id="assess" class="tab on">
+  <div class="grid">
+    <form class="panel" id="form" autocomplete="off">
+      <h2>Patient details</h2>
+      <p class="sub">Enter the 14 values the model was trained on. Nothing is stored.</p>
+      <div class="presets" id="presets"></div>
+      <div id="fields"></div>
+      <button class="btn p" type="submit">Assess risk</button>
+      <p class="err" id="ferr" role="alert"></p>
+    </form>
+    <div class="col" id="out"><div class="panel empty">Enter values and select <b>Assess risk</b> to see the estimate, why the model gave it, and what could lower it.</div></div>
+  </div>
+</section>
+
+<section id="model" class="tab"><div class="panel" id="gl"><p class="empty">Loading…</p></div></section>
+
+<section id="kb" class="tab">
+  <div class="panel" id="kbLogin">
+    <h2>Admin sign-in</h2>
+    <p class="sub">Only admins can add, verify, disable or delete the guidance used for suggestions. The token is printed in the server console when it starts.</p>
+    <div class="row"><input class="t" id="tok" type="password" placeholder="Admin token" style="max-width:320px" aria-label="Admin token"><button class="btn" id="loginBtn">Sign in</button></div>
+    <p class="err" id="lerr" role="alert"></p>
+  </div>
+  <div id="kbAdmin" style="display:none" class="col"></div>
+</section>
+</main>
+
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pct=(x,d=0)=>(x*100).toFixed(d)+'%', pts=x=>(x>0?'+':x<0?'−':'')+Math.abs(x*100).toFixed(1)+' pts';
+let META, TOKEN=sessionStorage.getItem('adm')||'';
+const PRESETS={
+ 'Typical healthy':{Age:26,G:2,P:1,L:1,A:0,D:0,SystolicBP:112,DiastolicBP:72,RBS:100,BodyTemp:98.6,HeartRate:78,HB:12.2,HBA1C:5.0,RR:18},
+ 'Raised BP':{Age:34,G:3,P:2,L:2,A:0,D:0,SystolicBP:165,DiastolicBP:110,RBS:110,BodyTemp:98.6,HeartRate:88,HB:9.5,HBA1C:5.2,RR:20},
+ 'Diabetic and anaemic':{Age:30,G:2,P:1,L:1,A:0,D:0,SystolicBP:115,DiastolicBP:75,RBS:260,BodyTemp:98.6,HeartRate:92,HB:8.0,HBA1C:7.0,RR:20}};
+
+// tabs
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.id===b.dataset.t));
+  if(b.dataset.t==='model')loadGlobal(); if(b.dataset.t==='kb'&&TOKEN)loadKB();
+});
+
+// form
+async function init(){
+  META=await (await fetch('/api/meta')).json();
+  let h='',g='';
+  for(const f of META.features){
+    if(f.group!==g){ if(g)h+='</fieldset>'; h+=`<fieldset><legend>${esc(f.group)}</legend>`; g=f.group }
+    h+=`<div class="f"><label for="i_${f.name}" title="${esc(f.hint||'')}">${esc(f.label)}</label><div class="inp"><input id="i_${f.name}" name="${f.name}" type="number" inputmode="decimal" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.default}" required><span>${esc(f.unit)}</span></div></div>`;
+  }
+  $('#fields').innerHTML=h+'</fieldset><fieldset><legend>Optional</legend><div class="f"><label for="i_trimester" title="Used only by the anaemia rule (WHO 2024 cutoffs differ in the 2nd trimester). Not a model input.">Stage of pregnancy</label><select id="i_trimester" class="t"><option value="">Not given</option><option value="1">1st trimester</option><option value="2">2nd trimester</option><option value="3">3rd trimester</option></select></div></fieldset>';
+  $('#presets').innerHTML=Object.keys(PRESETS).map(k=>`<button type="button" class="btn s" data-p="${esc(k)}">${esc(k)}</button>`).join('');
+  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{for(const[k,v]of Object.entries(PRESETS[b.dataset.p]))$('#i_'+k).value=v;$('#form').requestSubmit()});
+}
+$('#form').onsubmit=async e=>{
+  e.preventDefault(); $('#ferr').textContent='';
+  const body={}; META.features.forEach(f=>body[f.name]=$('#i_'+f.name).value); body.trimester=$('#i_trimester').value;
+  $('#out').style.opacity=.5;
+  const r=await fetch('/api/assess',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json(); $('#out').style.opacity=1;
+  if(!r.ok){$('#ferr').textContent=d.error;return}
+  render(d);
+};
+
+// results
+const FL=n=>META.features.find(f=>f.name===n);
+const valu=(n,v)=>{const f=FL(n);return `${+v.toFixed(1)}${f.unit?' '+f.unit:''}`};
+function render(d){
+  const crit=d.flags.filter(f=>f.level==='critical');
+  const strip=d.votes.slice().sort((a,b)=>a-b).map(v=>`<i style="height:${20+Math.abs(v-.5)*52}px;background:var(--${v>.5?'up':'down'});opacity:${.45+Math.abs(v-.5)}"></i>`).join('');
+  const hiTrees=d.votes.filter(v=>v>.5).length;
+  const sh=d.local.contribs, mx=Math.max(...sh.map(c=>Math.abs(c.shap)),.01);
+  const shown=sh.filter(c=>Math.abs(c.shap)>=.005), hidden=sh.length-shown.length;
+  const shapRows=shown.map(c=>{const w=Math.abs(c.shap)/mx*48, up=c.shap>0;
+    return `<div class="lab">${esc(FL(c.feature).label)}<small>${esc(valu(c.feature,c.value))}</small></div><div class="axis" role="img" aria-label="${esc(FL(c.feature).label)} ${up?'raises':'lowers'} risk by ${Math.abs(c.shap*100).toFixed(1)} points"><b class="${up?'up':'dn'}" style="${up?'left:50%':'right:50%'};width:${w}%"></b></div><div class="num ${up?'up':'dn'}">${pts(c.shap)}</div>`}).join('');
+  const cf=d.counterfactuals, cfRows=cf.rows.map(r=>{
+    const ch=Object.entries(r.changes).map(([k,v])=>`${esc(FL(k).label)} ${esc(valu(k,v.now))} → ${esc(valu(k,v.target))}`).join('<br>');
+    const sm=r.smallest_change?`Below 50% at ${Object.entries(r.smallest_change).map(([k,v])=>esc(FL(k).label)+' ≈ '+esc(valu(k,v))).join(', ')}`:(d.probability>=.5?'Not enough on its own':'—');
+    return `<tr><td><b>${esc(r.group)}</b></td><td>${ch}</td><td>${pct(r.risk_after)} <span class="num ${r.delta<0?'dn':'up'}" style="display:inline">(${pts(r.delta)})</span></td><td>${sm}</td></tr>`}).join('');
+  const ice=Object.entries(d.ice).map(([k,c])=>{
+    const X=x=>8+(x-c.x[0])/(c.x[c.x.length-1]-c.x[0])*224, Y=y=>96-y*88;
+    const path=c.x.map((x,i)=>(i?'L':'M')+X(x).toFixed(1)+' '+Y(c.y[i]).toFixed(1)).join('');
+    const cy=Y(d.probability);
+    return `<figure style="margin:0"><svg viewBox="0 0 240 118" role="img" aria-label="${esc(c.label)} against predicted risk"><line x1="8" x2="232" y1="${Y(.5)}" y2="${Y(.5)}" stroke="var(--line)" stroke-dasharray="3 3"/><path d="${path}" fill="none" stroke="var(--teal)" stroke-width="2"/><line x1="${X(c.current)}" x2="${X(c.current)}" y1="8" y2="96" stroke="var(--muted)" stroke-width="1"/><circle cx="${X(c.current)}" cy="${cy}" r="4.5" fill="var(--ink)"/><text x="8" y="112" font-size="10" fill="var(--muted)">${c.x[0]}</text><text x="232" y="112" font-size="10" text-anchor="end" fill="var(--muted)">${c.x[c.x.length-1]} ${esc(c.unit)}</text></svg><p>${esc(c.label)}</p></figure>`}).join('');
+  $('#out').innerHTML=`
+  ${crit.length?`<div class="alert" role="alert"><b>Urgent: seek clinical assessment today</b>${crit.map(f=>esc(f.text)+' (source: <a href="'+esc(f.source_url)+'" target="_blank" rel="noopener">'+esc(f.source_name)+'</a>)').join('; ')}. This rule-based alert applies regardless of the model's estimate.</div>`:''}
+  <div class="panel"><div class="hero"><div><div class="big">${pct(d.probability)}</div></div><div><span style="font-weight:600">Estimated probability of the high-risk class</span><span class="band ${d.band}">${d.band}</span></div></div>
+    <div class="forest" role="img" aria-label="${hiTrees} of 100 trees vote high risk">${strip}</div>
+    <div class="legend"><span><em style="background:var(--down)"></em>tree leans lower risk</span><span><em style="background:var(--up)"></em>tree leans high risk</span><span><b>${hiTrees} of 100</b> trees lean high risk; the forest averages them.</span></div>
+    <p style="margin:12px 0 0">${esc(d.narrative)}</p>
+    <p class="note">The percentage is the forest's vote share, not a calibrated clinical probability. Bands are display conventions.</p></div>
+  <div class="panel"><h2>Why the model said this</h2><p class="sub">SHAP: how many percentage points each input moved this estimate away from the model's baseline of ${pct(d.local.base)}. They add up exactly to ${pct(d.probability)}.</p>
+    <div class="shap">${shapRows}</div>${hidden?`<p class="note">${hidden} more inputs had almost no effect here.</p>`:''}</div>
+  <div class="panel"><h2>What would change it</h2><p class="sub">The model re-run with out-of-range values moved to typical healthy values. This shows how the model responds; it is not a treatment target.</p>
+    ${cfRows?`<table><thead><tr><th>Area</th><th>Change tested</th><th>Estimate afterwards</th><th>Smallest change to drop below 50%</th></tr></thead><tbody>${cfRows}</tbody></table><p class="note">All areas together: ${pct(cf.all_normalised)}.</p><p class="note">Where the targets come from: ${[...new Set(cf.rows.flatMap(r=>Object.entries(r.changes).map(([k,v])=>FL(k).label+': '+v.note)))].map(esc).join('. ')}.</p>`:'<p class="note">No out-of-range vitals or labs were found, so there is nothing to change.</p>'}</div>
+  <div class="panel"><h2>How sensitive is it?</h2><p class="sub">Predicted risk as one input changes and all others stay as entered. The dot is this patient; the dashed line is 50%.</p><div class="ice">${ice}</div></div>
+  <div class="panel"><h2>Suggested next steps</h2>${suggest(d.suggestions)}</div>`;
+}
+function suggest(s){
+  const all=s.cards.flatMap(c=>c.passages), unv=all.some(p=>!p.verified);
+  let h=unv?`<div class="banner" style="margin:8px 0 12px">Some guidance below comes from starter content that has not been clinically verified. An admin can verify or replace it in the Knowledge base tab.</div>`:'';
+  if(s.summary)h+=`<div class="card" style="margin-bottom:12px"><h3>Plain-language summary</h3><p style="margin:0;max-width:78ch;white-space:pre-wrap">${esc(s.summary)}</p><p class="note">Written by an AI from the passages below only. Check against the sources.</p></div>`;
+  h+='<div class="col">'+s.cards.map(c=>`<div class="card"><h3>${esc(c.group)} <span class="chip ${c.level}">${c.level==='info'?'for awareness':c.level}</span></h3>
+    ${c.reasons.length?`<ul>${c.reasons.map(r=>`<li>${esc(r.text)}<div class="note">Source: <a href="${esc(r.source_url)}" target="_blank" rel="noopener">${esc(r.source_name)}</a>${r.note?' · '+esc(r.note):''}</div></li>`).join('')}</ul>`:''}
+    ${c.targets.length?`<div class="note">Typical target: ${esc(c.targets.join('; '))}</div>`:''}
+    ${c.shap>0.005?`<div class="note">Model attributes ${pts(c.shap)} of this estimate to this area.</div>`:''}
+    ${c.passages.length?c.passages.map(p=>`<div class="pass">${p.text.split(/\n\n/).map(x=>`<p>${esc(x)}</p>`).join('')}<div class="src"><span class="chip ${p.verified?'ver':'unv'}">${p.verified?'Verified source':'Unverified starter'}</span><span>${esc(p.title)} · ${esc(p.source)}</span></div></div>`).join(''):'<p class="note">No approved guidance covers this yet. Ask an admin to add a source for it.</p>'}</div>`).join('')+'</div>';
+  if(!s.cards.length)h+='<p class="note">No suggestions were triggered, or no approved sources are enabled.</p>';
+  return h;
+}
+
+// global
+async function loadGlobal(){
+  const g=await (await fetch('/api/global')).json(), mx=Math.max(...g.rows.map(r=>r.mean_abs_shap)),mi=Math.max(...g.rows.map(r=>r.impurity));
+  $('#gl').innerHTML=`<h2>What drives this model overall</h2><p class="sub">Two views of overall importance. Mean |SHAP| is the average effect on the estimate (percentage points). Impurity importance is the forest's internal split score.</p>
+  ${g.source==='synthetic'?'<div class="banner" style="margin-bottom:12px">Computed on a synthetic reference population, because the training data was not provided. Treat as indicative. For exact figures, save your training features as model/background.csv and restart.</div>':''}
+  <div class="gbar"><b>Input</b><b>Mean |SHAP|</b><b>Impurity importance</b>${g.rows.map(r=>`<span>${esc(r.label)}</span><div class="row" style="flex-wrap:nowrap"><div class="b" style="width:${r.mean_abs_shap/mx*80}%"></div><small>${(r.mean_abs_shap*100).toFixed(1)}</small></div><div class="row" style="flex-wrap:nowrap"><div class="b g" style="width:${r.impurity/mi*80}%"></div><small>${(r.impurity*100).toFixed(1)}%</small></div>`).join('')}</div>`;
+}
+
+// admin
+const H=()=>({'X-Admin-Token':TOKEN,'content-type':'application/json'});
+$('#loginBtn').onclick=async()=>{TOKEN=$('#tok').value;const r=await fetch('/api/admin/login',{method:'POST',headers:H()});
+  if(r.ok){sessionStorage.setItem('adm',TOKEN);loadKB()}else{$('#lerr').textContent='That token is not valid.'}};
+async function loadKB(){
+  const r=await fetch('/api/admin/kb',{headers:H()}); if(!r.ok){TOKEN='';sessionStorage.removeItem('adm');return}
+  const d=await r.json(); $('#kbLogin').style.display='none'; const A=$('#kbAdmin'); A.style.display='flex';
+  A.innerHTML=`<div class="panel"><div class="row"><div><h2>Sources used for suggestions</h2><p class="sub" style="margin:0">${d.docs.length} documents, ${d.chunks} searchable passages in use.</p></div>
+    <label class="row" style="margin-left:auto"><input type="checkbox" id="onlyv" ${d.settings.only_verified?'checked':''}> Only use verified sources</label></div>
+    ${d.docs.map(x=>`<div class="kb"><div><h4>${esc(x.title)} <span class="chip ${x.verified?'ver':'unv'}">${x.verified?'Verified':'Unverified'}</span>${x.enabled?'':' <span class="chip info">Disabled</span>'}</h4><div class="note">${esc(x.source)} · tags: ${esc(x.tags.join(', ')||'none')} · added ${esc(x.added)}</div><details><summary class="note" style="cursor:pointer">Read text</summary><p style="white-space:pre-wrap;font-size:13.5px;max-width:80ch">${esc(x.text)}</p></details></div>
+    <div class="row" style="align-self:start"><button class="btn s" data-a="v" data-id="${x.id}" data-v="${x.verified}">${x.verified?'Remove verification':'Mark verified'}</button><button class="btn s" data-a="e" data-id="${x.id}" data-v="${x.enabled}">${x.enabled?'Disable':'Enable'}</button><button class="btn s d" data-a="x" data-id="${x.id}">Delete</button></div></div>`).join('')}</div>
+  <div class="panel"><h2>Add a source</h2><p class="sub">Paste text or upload a .txt, .md or .pdf (for example a book). Tags link passages to inputs: ${META.features.map(f=>f.name).join(', ')}, general.</p>
+    <form id="addf" class="col" style="gap:10px"><input class="t" name="title" placeholder="Title" aria-label="Title" required><input class="t" name="source" placeholder="Source (book, edition, publisher, year)" aria-label="Source"><input class="t" name="tags" placeholder="Tags, comma separated" aria-label="Tags">
+    <textarea class="t" name="text" rows="5" placeholder="Paste text here, or choose a file below" aria-label="Text"></textarea><input type="file" name="file" accept=".txt,.md,.pdf" aria-label="File"><label class="row"><input type="checkbox" name="verified"> Mark as verified</label>
+    <div><button class="btn" type="submit">Add source</button></div><p class="err" id="aerr" role="alert"></p></form></div>
+  <div class="panel"><h2>Test retrieval</h2><p class="sub">See which passages a question would pull from the sources currently in use.</p><div class="row"><input class="t" id="q" placeholder="e.g. severe headache and swelling" style="max-width:420px" aria-label="Test query"><button class="btn" id="qb">Search</button></div><div id="qr"></div></div>`;
+  $('#onlyv').onchange=async e=>{await fetch('/api/admin/settings',{method:'PUT',headers:H(),body:JSON.stringify({only_verified:e.target.checked})});loadKB()};
+  A.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{const id=b.dataset.id,a=b.dataset.a,v=b.dataset.v==='true';
+    if(a==='x'){if(!confirm('Delete this source permanently?'))return;await fetch('/api/admin/kb/'+id,{method:'DELETE',headers:H()})}
+    else await fetch('/api/admin/kb/'+id,{method:'PATCH',headers:H(),body:JSON.stringify(a==='v'?{verified:!v}:{enabled:!v})});loadKB()});
+  $('#addf').onsubmit=async e=>{e.preventDefault();const fd=new FormData(e.target);if(!fd.get('file')?.name)fd.delete('file');
+    const r=await fetch('/api/admin/kb',{method:'POST',headers:{'X-Admin-Token':TOKEN},body:fd});if(r.ok)loadKB();else $('#aerr').textContent=(await r.json()).error};
+  $('#qb').onclick=async()=>{const r=await fetch('/api/admin/search',{method:'POST',headers:H(),body:JSON.stringify({query:$('#q').value})});const j=await r.json();
+    $('#qr').innerHTML=j.results.length?j.results.map(p=>`<div class="pass"><p>${esc(p.text.slice(0,320))}…</p><div class="src"><span>${esc(p.title)}</span><span>score ${p.score.toFixed(2)}</span></div></div>`).join(''):'<p class="note">Nothing matched.</p>'};
+}
+init().then(()=>{ if(TOKEN)loadKB() });
+</script>
+</body>
+</html>

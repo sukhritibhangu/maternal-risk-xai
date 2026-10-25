@@ -1,0 +1,6 @@
+venv/
+__pycache__/
+*.pyc
+knowledge/store.json
+knowledge/audit.log
+.env

@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: maternal-risk-lens
+    runtime: python
+    plan: starter            # use "free" for a demo only (see README: storage is wiped on restart)
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 300 --bind 0.0.0.0:$PORT
+    healthCheckPath: /api/meta
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.9
+      - key: ADMIN_TOKEN
+        value: mysecret123     # change this in the Render dashboard for real use
+      - key: GEMINI_API_KEY
+        sync: false          # optional: enables the AI summary. Use a PAID key (see README)
+      - key: DATA_DIR
+        value: /var/data     # persistent disk mount (starter plan or higher)
+    disk:
+      name: kb-data
+      mountPath: /var/data
+      sizeGB: 1

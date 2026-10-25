@@ -1,0 +1,8 @@
+flask>=3
+gunicorn>=22
+scikit-learn==1.8.0
+joblib
+numpy
+pandas
+shap>=0.45
+pypdf
