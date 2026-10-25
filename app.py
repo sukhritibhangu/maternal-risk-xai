@@ -4,7 +4,7 @@ import joblib
 from flask import Flask, jsonify, request, send_from_directory
 from features import FEATURES, BY_NAME, flags_for
 from xai import Explainer, band, narrative
-from rag import KnowledgeStore, Retriever, build_cards, llm_summary
+from rag import KnowledgeStore, Retriever, build_cards, llm_summary, gemini_rerank
 
 warnings.filterwarnings("ignore")
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -16,7 +16,14 @@ bg = os.path.join(HERE, "model", "background.csv")  # optional: drop your traini
 xai = Explainer(model, bg if os.path.exists(bg) else None)
 store = KnowledgeStore()
 retriever = Retriever(store)
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or "mysecret123"  # fixed default; an ADMIN_TOKEN env var overrides it
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or "mysecret123"  # local default; set ADMIN_TOKEN to override
+if os.environ.get("RENDER") and not os.environ.get("ADMIN_TOKEN"):  # never ship the known default to a public host
+    ADMIN_TOKEN = secrets.token_urlsafe(16)
+    print("ADMIN_TOKEN is not set on this host, so a random one is in use and admin sign-in will not work. Set ADMIN_TOKEN.", flush=True)
+
+
+def ai_on(flag):  # an AI feature runs only if the server has a key AND an admin has switched it on
+    return bool(os.environ.get("GEMINI_API_KEY")) and bool(store.data["settings"].get(flag))
 
 
 def admin_only(fn):
@@ -49,7 +56,7 @@ def index():
 @app.get("/api/meta")
 def meta():
     return jsonify(features=FEATURES, decision_threshold=0.5, bands=[0.35, 0.65],
-                   llm=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"])
+                   llm=ai_on("ai_summary"), gemini_key=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"])
 
 
 @app.post("/api/assess")
@@ -67,12 +74,14 @@ def assess():
     p = local["prediction"]
     flags = flags_for(v, tri)
     top = [c["feature"] for c in local["contribs"][:4]]
-    cards = build_cards(flags, local["contribs"], retriever)
     line = f"risk {p:.0%}; " + "; ".join(f["text"] for f in flags)
+    cards = build_cards(flags, local["contribs"], retriever, rerank=gemini_rerank if ai_on("ai_rerank") else None, patient_line=line)
+    summary = llm_summary(line, cards) if ai_on("ai_summary") else None
     return jsonify(
         probability=p, band=band(p), votes=xai.votes(v), local=local, flags=flags,
         narrative=narrative(p, local, flags), counterfactuals=xai.counterfactuals(v, flags),
-        ice=xai.ice(v, top), suggestions=dict(cards=cards, summary=llm_summary(line, cards),
+        ice=xai.ice(v, top), suggestions=dict(cards=cards, summary=summary,
+                                              ai=dict(summary=bool(summary), rerank=any(c.get("ai_ranked") for c in cards)),
                                               only_verified=store.data["settings"]["only_verified"]))
 
 
@@ -91,7 +100,7 @@ def login():
 @app.get("/api/admin/kb")
 @admin_only
 def kb_list():
-    return jsonify(docs=store.data["docs"], settings=store.data["settings"], chunks=len(retriever.chunks))
+    return jsonify(docs=store.data["docs"], settings=store.data["settings"], chunks=len(retriever.chunks), gemini_key=bool(os.environ.get("GEMINI_API_KEY")))
 
 
 def _extract(file):
@@ -148,4 +157,4 @@ def test_search():
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=int(os.environ.get("PORT", 5000)), debug=False)
+    app.run(host="0.0.0.0" if os.environ.get("PORT") else "127.0.0.1", port=int(os.environ.get("PORT", 5000)), debug=False)

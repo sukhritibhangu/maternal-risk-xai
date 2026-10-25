@@ -15,11 +15,15 @@ LOCK = threading.Lock()
 
 
 # ---------- store
+DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False}  # AI features are OFF until an admin turns them on
+
+
 class KnowledgeStore:
     def __init__(self):
-        self.data = {"settings": {"only_verified": False}, "docs": []}
+        self.data = {"settings": dict(DEFAULT_SETTINGS), "docs": []}
         if os.path.exists(STORE):
             self.data = json.load(open(STORE, encoding="utf-8"))
+            self.data["settings"] = {**DEFAULT_SETTINGS, **self.data.get("settings", {})}
         else:
             from seed_kb import SEED, SOURCE
             for d in SEED:
@@ -108,7 +112,7 @@ class Retriever:
 
 
 # ---------- personalised cards
-def build_cards(flags, contribs, retriever, max_cards=5):
+def build_cards(flags, contribs, retriever, max_cards=5, rerank=None, patient_line=""):
     """One card per driver group. Order: critical flags, then by positive SHAP contribution.
     Each card is tied to the patient's own values and carries source passages."""
     shap_by_group, val_by_feat = {}, {}
@@ -124,12 +128,14 @@ def build_cards(flags, contribs, retriever, max_cards=5):
         if s > 0.015 and g not in groups:
             groups[g] = dict(group=g, flags=[], rank=0)
     ordered = sorted(groups.values(), key=lambda x: (-x["rank"], -shap_by_group.get(x["group"], 0)))[:max_cards]
-    used, cards = set(), []
+    used, cards, cand = set(), [], {}
     for g in ordered:
         name = g["group"]
         q = GROUP_QUERY[name] + " " + " ".join(f["text"] for f in g["flags"])
         tags = DRIVER_GROUPS[name]
-        hits = retriever.search(q, k=2, tags=tags, exclude=used)
+        found = retriever.search(q, k=4 if rerank else 2, tags=tags, exclude=used)
+        cand[name] = found
+        hits = found[:2]  # default order = local TF-IDF ranking
         used.update((h["doc_id"], h["text"][:40]) for h in hits)
         level = max([f["level"] for f in g["flags"]], default="info", key=lambda l: LEVEL_RANK[l])
         if hits or LEVEL_RANK[level] >= 2:  # never silently drop a high/critical driver; show an explicit gap instead
@@ -137,34 +143,35 @@ def build_cards(flags, contribs, retriever, max_cards=5):
                               reasons=[dict(text=f["text"], source_name=f["source_name"], source_url=f["source_url"], note=f.get("note", "")) for f in g["flags"]],
                               targets=[f["target"] for f in g["flags"] if f["target"]],
                               shap=float(shap_by_group.get(name, 0)), passages=hits))
+    if rerank and cards:  # optional: Gemini may only CHOOSE among passages we already retrieved; it never writes guidance
+        picked = rerank({c["group"]: cand[c["group"]] for c in cards if len(cand.get(c["group"], [])) > 1}, patient_line)
+        if picked:
+            seen = set()
+            for c in cards:
+                idx = picked.get(c["group"])
+                if not idx:
+                    seen.update((p["doc_id"], p["text"][:40]) for p in c["passages"]); continue
+                chosen = [cand[c["group"]][i] for i in idx if (cand[c["group"]][i]["doc_id"], cand[c["group"]][i]["text"][:40]) not in seen][:2]
+                if chosen:
+                    c["passages"] = chosen; c["ai_ranked"] = True
+                seen.update((p["doc_id"], p["text"][:40]) for p in c["passages"])
     gen = retriever.search("antenatal care danger signs when to go to hospital", k=1, tags=["general"], exclude=used)
     if gen:
         cards.append(dict(group="General care and danger signs", level="info", reasons=[], targets=[], shap=0.0, passages=gen))
     return cards
 
 
-def llm_summary(patient_line, cards):
-    """Optional. Active only when GEMINI_API_KEY is set. Uses Gemini Flash-Lite (model id from GEMINI_MODEL).
-    The model is told to use ONLY the retrieved passages. PRIVACY: the risk %, the flagged values and the
-    retrieved passages are sent to Google. Use a PAID key: Google's terms for the free tier allow it to use
-    submitted content to improve its products, and human reviewers may read it."""
+def _gemini(system, prompt, max_tokens=600):
+    """One call to Gemini Flash-Lite (model id from GEMINI_MODEL). Returns text or None.
+    PRIVACY: whatever is in `prompt` is sent to Google. Use a PAID key: on the free tier Google's terms allow it to
+    use submitted content to improve its products, and human reviewers may read it."""
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
         return None
-    src, n = [], 0
-    for c in cards:
-        for p in c["passages"]:
-            n += 1; src.append(f"[S{n}] ({p['title']}) {p['text']}")
-    if not src:
-        return None
     model = re.sub(r"[^A-Za-z0-9._-]", "", os.environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"))
-    system = ("You draft patient-friendly next steps for a maternal health tool. Use ONLY the numbered sources provided; "
-              "if they do not cover something, say so. Cite sources as [S#]. Do not diagnose and do not give drug doses. "
-              "Plain language, maximum 150 words.")
-    prompt = f"Patient context: {patient_line}\n\nSources:\n" + "\n\n".join(src)
     body = json.dumps(dict(systemInstruction=dict(parts=[dict(text=system)]),
                            contents=[dict(role="user", parts=[dict(text=prompt)])],
-                           generationConfig=dict(temperature=0.2, maxOutputTokens=600))).encode()
+                           generationConfig=dict(temperature=0.2, maxOutputTokens=max_tokens))).encode()
     req = urllib.request.Request(f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent", body,
                                  {"content-type": "application/json", "x-goog-api-key": key})
     try:
@@ -172,5 +179,50 @@ def llm_summary(patient_line, cards):
         parts = r["candidates"][0]["content"]["parts"]
         return "".join(p.get("text", "") for p in parts).strip() or None
     except Exception as e:
-        print("Gemini summary unavailable:", type(e).__name__, str(e)[:200])
+        print("Gemini call failed:", type(e).__name__, str(e)[:200])
+        return None
+
+
+def llm_summary(patient_line, cards):
+    """Optional plain-language summary written ONLY from the retrieved passages."""
+    src, n = [], 0
+    for c in cards:
+        for p in c["passages"]:
+            n += 1; src.append(f"[S{n}] ({p['title']}) {p['text']}")
+    if not src:
+        return None
+    system = ("You draft patient-friendly next steps for a maternal health tool. Use ONLY the numbered sources provided; "
+              "if they do not cover something, say so. Cite sources as [S#]. Do not diagnose and do not give drug doses. "
+              "Plain language, maximum 150 words.")
+    return _gemini(system, f"Patient context: {patient_line}\n\nSources:\n" + "\n\n".join(src))
+
+
+def gemini_rerank(per_area, patient_line):
+    """Optional re-ranking. per_area = {area: [passage, ...]}. Returns {area: [0-based indexes]} or None on any problem
+    (the caller then keeps the local TF-IDF order). Gemini can only pick numbers; it cannot add or change text."""
+    if not per_area:
+        return None
+    blocks = []
+    for area, ps in per_area.items():
+        blocks.append(f"Area: {area}\n" + "\n".join(f"[{i + 1}] ({p['title']}) {p['text'][:500]}" for i, p in enumerate(ps)))
+    system = ("You choose which approved guidance passages are most useful for one pregnant patient's situation. "
+              "You may ONLY select from the numbered passages. Never write advice. Reply with JSON only.")
+    prompt = (f"Patient context: {patient_line}\n\nFor each area pick up to 2 passage numbers, most useful first.\n\n" + "\n\n".join(blocks) +
+              '\n\nReply ONLY with JSON like {"Blood pressure": [2, 1]} using the area names above.')
+    text = _gemini(system, prompt, max_tokens=300)
+    if not text:
+        return None
+    try:
+        data = json.loads(text[text.index("{"):text.rindex("}") + 1])
+        out = {}
+        for area, ids in data.items():
+            if area in per_area and isinstance(ids, list):
+                good = []
+                for x in ids:
+                    if isinstance(x, int) and 1 <= x <= len(per_area[area]) and x - 1 not in good:
+                        good.append(x - 1)
+                if good:
+                    out[area] = good
+        return out or None
+    except (ValueError, TypeError):
         return None

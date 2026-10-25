@@ -196,7 +196,8 @@ function render(d){
 function suggest(s){
   const all=s.cards.flatMap(c=>c.passages), unv=all.some(p=>!p.verified);
   let h=unv?`<div class="banner" style="margin:8px 0 12px">Some guidance below comes from starter content that has not been clinically verified. An admin can verify or replace it in the Knowledge base tab.</div>`:'';
-  if(s.summary)h+=`<div class="card" style="margin-bottom:12px"><h3>Plain-language summary</h3><p style="margin:0;max-width:78ch;white-space:pre-wrap">${esc(s.summary)}</p><p class="note">Written by an AI from the passages below only. Check against the sources.</p></div>`;
+  if(s.ai&&s.ai.rerank)h+=`<p class="note" style="margin:0 0 10px">The order of the passages was chosen with help from Gemini. It can only pick from approved passages; the text is unchanged.</p>`;
+  if(s.summary)h+=`<div class="card" style="margin-bottom:12px"><h3>Plain-language summary</h3><p style="margin:0;max-width:78ch;white-space:pre-wrap">${esc(s.summary)}</p><p class="note">Written by an AI (Gemini) from the passages below only. Check against the sources.</p></div>`;
   h+='<div class="col">'+s.cards.map(c=>`<div class="card"><h3>${esc(c.group)} <span class="chip ${c.level}">${c.level==='info'?'for awareness':c.level}</span></h3>
     ${c.reasons.length?`<ul>${c.reasons.map(r=>`<li>${esc(r.text)}<div class="note">Source: <a href="${esc(r.source_url)}" target="_blank" rel="noopener">${esc(r.source_name)}</a>${r.note?' · '+esc(r.note):''}</div></li>`).join('')}</ul>`:''}
     ${c.targets.length?`<div class="note">Typical target: ${esc(c.targets.join('; '))}</div>`:''}
@@ -222,7 +223,10 @@ async function loadKB(){
   const r=await fetch('/api/admin/kb',{headers:H()}); if(!r.ok){TOKEN='';sessionStorage.removeItem('adm');return}
   const d=await r.json(); $('#kbLogin').style.display='none'; const A=$('#kbAdmin'); A.style.display='flex';
   A.innerHTML=`<div class="panel"><div class="row"><div><h2>Sources used for suggestions</h2><p class="sub" style="margin:0">${d.docs.length} documents, ${d.chunks} searchable passages in use.</p></div>
-    <label class="row" style="margin-left:auto"><input type="checkbox" id="onlyv" ${d.settings.only_verified?'checked':''}> Only use verified sources</label></div>
+    <div class="col" style="margin-left:auto;gap:6px"><label class="row"><input type="checkbox" id="onlyv" ${d.settings.only_verified?'checked':''}> Only use verified sources</label>
+      <label class="row"><input type="checkbox" id="aisum" ${d.settings.ai_summary?'checked':''} ${d.gemini_key?'':'disabled'}> Gemini: write a plain-language summary</label>
+      <label class="row"><input type="checkbox" id="airank" ${d.settings.ai_rerank?'checked':''} ${d.gemini_key?'':'disabled'}> Gemini: re-rank the retrieved passages</label></div></div>
+    <p class="note" style="margin:8px 0 0">${d.gemini_key?'A Gemini key is set on the server. Both switches are off until you turn them on. When on, the risk estimate, flagged values and approved passages are sent to Google for each assessment. Use a paid key and get privacy approval first.':'No GEMINI_API_KEY is set on the server, so the Gemini switches are disabled. Retrieval uses the local text search only.'}</p>
     ${d.docs.map(x=>`<div class="kb"><div><h4>${esc(x.title)} <span class="chip ${x.verified?'ver':'unv'}">${x.verified?'Verified':'Unverified'}</span>${x.enabled?'':' <span class="chip info">Disabled</span>'}</h4><div class="note">${esc(x.source)} · tags: ${esc(x.tags.join(', ')||'none')} · added ${esc(x.added)}</div><details><summary class="note" style="cursor:pointer">Read text</summary><p style="white-space:pre-wrap;font-size:13.5px;max-width:80ch">${esc(x.text)}</p></details></div>
     <div class="row" style="align-self:start"><button class="btn s" data-a="v" data-id="${x.id}" data-v="${x.verified}">${x.verified?'Remove verification':'Mark verified'}</button><button class="btn s" data-a="e" data-id="${x.id}" data-v="${x.enabled}">${x.enabled?'Disable':'Enable'}</button><button class="btn s d" data-a="x" data-id="${x.id}">Delete</button></div></div>`).join('')}</div>
   <div class="panel"><h2>Add a source</h2><p class="sub">Paste text or upload a .txt, .md or .pdf (for example a book). Tags link passages to inputs: ${META.features.map(f=>f.name).join(', ')}, general.</p>
@@ -230,7 +234,7 @@ async function loadKB(){
     <textarea class="t" name="text" rows="5" placeholder="Paste text here, or choose a file below" aria-label="Text"></textarea><input type="file" name="file" accept=".txt,.md,.pdf" aria-label="File"><label class="row"><input type="checkbox" name="verified"> Mark as verified</label>
     <div><button class="btn" type="submit">Add source</button></div><p class="err" id="aerr" role="alert"></p></form></div>
   <div class="panel"><h2>Test retrieval</h2><p class="sub">See which passages a question would pull from the sources currently in use.</p><div class="row"><input class="t" id="q" placeholder="e.g. severe headache and swelling" style="max-width:420px" aria-label="Test query"><button class="btn" id="qb">Search</button></div><div id="qr"></div></div>`;
-  $('#onlyv').onchange=async e=>{await fetch('/api/admin/settings',{method:'PUT',headers:H(),body:JSON.stringify({only_verified:e.target.checked})});loadKB()};
+  [['onlyv','only_verified'],['aisum','ai_summary'],['airank','ai_rerank']].forEach(([id,k])=>{$('#'+id).onchange=async e=>{await fetch('/api/admin/settings',{method:'PUT',headers:H(),body:JSON.stringify({[k]:e.target.checked})});loadKB()}});
   A.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{const id=b.dataset.id,a=b.dataset.a,v=b.dataset.v==='true';
     if(a==='x'){if(!confirm('Delete this source permanently?'))return;await fetch('/api/admin/kb/'+id,{method:'DELETE',headers:H()})}
     else await fetch('/api/admin/kb/'+id,{method:'PATCH',headers:H(),body:JSON.stringify(a==='v'?{verified:!v}:{enabled:!v})});loadKB()});

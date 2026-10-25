@@ -28,12 +28,15 @@ Then tick *Only use verified sources* and delete or disable the starter document
 Tags (feature names, or `general`) boost passages for matching drivers. Scanned PDFs need OCR first.
 To upgrade retrieval to embeddings, replace `Retriever` in `rag.py` (same `rebuild()` / `search()` interface).
 
-## Optional AI summary (Gemini Flash-Lite)
-Set `GEMINI_API_KEY` (and optionally `GEMINI_MODEL`, default `gemini-3.5-flash-lite`). A short plain-language summary is then
-written from the retrieved passages only, with [S#] citations. Without a key, passages are shown as written.
-Privacy: the risk percentage, flagged values and retrieved passages are sent to Google. Google's Gemini API terms say that on
-free (unpaid) quota it may use submitted content to improve its products and human reviewers may read it. Use a paid key, and
-get privacy approval, before using real patient data. The call was tested with a mock only, not against the live API.
+## Optional Gemini features (Flash-Lite), controlled by the admin
+Passage retrieval is always local (TF-IDF text search). Gemini is optional and has two separate switches in the Knowledge base tab:
+1. **Write a plain-language summary** from the retrieved passages, with [S#] citations.
+2. **Re-rank the retrieved passages**: Gemini may only pick among passages that were already retrieved; it cannot add or change text.
+
+Both are OFF by default, even if a key is set. They work only when the server has `GEMINI_API_KEY` (optionally `GEMINI_MODEL`, default `gemini-3.5-flash-lite`) AND an admin switches them on.
+Any failure (bad key, quota, odd reply) falls back to the local result. Privacy: when on, the risk percentage, flagged values and approved passages are sent to Google
+for every assessment. On Google's free tier it may use submitted content to improve its products, and human reviewers may read it. Use a paid key and get privacy approval
+before real patient data. Tested with a mock only, not against the live API.
 
 
 ## Assumptions to confirm
