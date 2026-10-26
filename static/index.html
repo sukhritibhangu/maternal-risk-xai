@@ -142,9 +142,9 @@ const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=
 const pct=(x,d=0)=>(x*100).toFixed(d)+'%', pts=x=>(x>0?'+':x<0?'−':'')+Math.abs(x*100).toFixed(1)+' pts';
 let META, TOKEN=sessionStorage.getItem('adm')||'';
 const PRESETS={
- 'Typical healthy':{Age:26,G:2,P:1,L:1,A:0,D:0,SystolicBP:112,DiastolicBP:72,RBS:100,BodyTemp:98.6,HeartRate:78,HB:12.2,HBA1C:5.0,RR:18},
- 'Raised BP':{Age:34,G:3,P:2,L:2,A:0,D:0,SystolicBP:165,DiastolicBP:110,RBS:110,BodyTemp:98.6,HeartRate:88,HB:9.5,HBA1C:5.2,RR:20},
- 'Diabetic and anaemic':{Age:30,G:2,P:1,L:1,A:0,D:0,SystolicBP:115,DiastolicBP:75,RBS:260,BodyTemp:98.6,HeartRate:92,HB:8.0,HBA1C:7.0,RR:20}};
+ 'Illustrative profile':{Age:26,G:2,P:1,L:1,A:0,D:0,SystolicBP:112,DiastolicBP:72,RBS:100,BodyTemp:98.6,HeartRate:78,HB:12.2,HBA1C:5.0,RR:18},
+ 'Illustrative raised BP':{Age:34,G:3,P:2,L:2,A:0,D:0,SystolicBP:165,DiastolicBP:110,RBS:110,BodyTemp:98.6,HeartRate:88,HB:9.5,HBA1C:5.2,RR:20},
+ 'Illustrative glucose and Hb':{Age:30,G:2,P:1,L:1,A:0,D:0,SystolicBP:115,DiastolicBP:75,RBS:260,BodyTemp:98.6,HeartRate:92,HB:8.0,HBA1C:7.0,RR:20}};
 
 // tabs
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
@@ -161,7 +161,7 @@ async function init(){
     if(f.group!==g){ if(g)h+='</fieldset>'; h+=`<fieldset><legend>${esc(f.group)}</legend>`; g=f.group }
     h+=`<div class="f"><label for="i_${f.name}" title="${esc(f.hint||'')}">${esc(f.label)}</label><div class="inp"><input id="i_${f.name}" name="${f.name}" type="number" inputmode="decimal" min="${f.min}" max="${f.max}" step="${f.step}" value="${f.default}" required><span>${esc(f.unit)}</span></div></div>`;
   }
-  $('#fields').innerHTML=h+'</fieldset><fieldset><legend>Optional</legend><div class="f"><label for="i_trimester" title="Used only by the anaemia rule (WHO 2024 cutoffs differ in the 2nd trimester). Not a model input.">Stage of pregnancy</label><select id="i_trimester" class="t"><option value="">Not given</option><option value="1">1st trimester</option><option value="2">2nd trimester</option><option value="3">3rd trimester</option></select></div></fieldset>';
+  $('#fields').innerHTML=h+'</fieldset><fieldset><legend>Optional clinical context</legend><div class="f"><label for="i_trimester" title="Used only by the anaemia rule (WHO 2024 cutoffs differ in the 2nd trimester). Not a model input.">Stage of pregnancy</label><select id="i_trimester" class="t"><option value="">Not given</option><option value="1">1st trimester</option><option value="2">2nd trimester</option><option value="3">3rd trimester</option></select></div><label class="row" for="i_intrapartum"><input id="i_intrapartum" type="checkbox"> In labour or childbirth (gates the Government of India fever criterion)</label></fieldset>';
   $('#presets').innerHTML=Object.keys(PRESETS).map(k=>`<button type="button" class="btn s" data-p="${esc(k)}">${esc(k)}</button>`).join('');
   document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{for(const[k,v]of Object.entries(PRESETS[b.dataset.p]))$('#i_'+k).value=v;$('#form').requestSubmit()});
 }
@@ -182,7 +182,7 @@ $('#form').addEventListener('input',()=>{
 $('#form').onsubmit=async e=>{
   e.preventDefault(); if(!META)return; $('#ferr').textContent='';
   const button=$('#form button[type=submit]'); if(button.disabled)return;
-  const body={}; META.features.forEach(f=>body[f.name]=$('#i_'+f.name).value); body.trimester=$('#i_trimester').value;
+  const body={}; META.features.forEach(f=>body[f.name]=$('#i_'+f.name).value); body.trimester=$('#i_trimester').value; body.intrapartum=$('#i_intrapartum').checked;
   button.disabled=true;button.textContent='Assessing and finding guidance…';$('#out').setAttribute('aria-busy','true');
   $('#form').querySelectorAll('input,select,[data-p]').forEach(el=>el.disabled=true);
   try{const d=await api('/api/assess',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});render(d);hasResult=true;}
@@ -211,16 +211,17 @@ function render(d){
     const cy=Y(d.probability);
     return `<figure style="margin:0"><svg viewBox="0 0 240 118" role="img" aria-label="${esc(c.label)} against predicted risk"><line x1="8" x2="232" y1="${Y(.5)}" y2="${Y(.5)}" stroke="var(--line)" stroke-dasharray="3 3"/><path d="${path}" fill="none" stroke="var(--teal)" stroke-width="2"/><line x1="${X(c.current)}" x2="${X(c.current)}" y1="8" y2="96" stroke="var(--muted)" stroke-width="1"/><circle cx="${X(c.current)}" cy="${cy}" r="4.5" fill="var(--ink)"/><text x="8" y="112" font-size="10" fill="var(--muted)">${c.x[0]}</text><text x="232" y="112" font-size="10" text-anchor="end" fill="var(--muted)">${c.x[c.x.length-1]} ${esc(c.unit)}</text></svg><p>${esc(c.label)}</p></figure>`}).join('');
   $('#out').innerHTML=`
-  ${crit.length?`<div class="alert" role="alert"><b>Urgent: seek clinical assessment today</b>${crit.map(f=>esc(f.text)+' (source: <a href="'+esc(f.source_url)+'" target="_blank" rel="noopener">'+esc(f.source_name)+'</a>)').join('; ')}. This rule-based alert applies regardless of the model's estimate.</div>`:''}
+  ${crit.length?`<div class="alert" role="alert"><b>Urgent: seek clinical assessment today</b>${crit.map(f=>esc(f.text)+' (source: <a href="'+esc(f.source_url)+'" target="_blank" rel="noopener">'+esc(f.source_name)+'</a>; '+esc(f.note)+')').join('; ')}. This rule-based alert applies regardless of the model's estimate.</div>`:''}
   <div class="panel"><div class="hero"><div><div class="big">${pct(d.probability)}</div></div><div><span style="font-weight:600">Estimated probability of the high-risk class</span><span class="band ${d.band}">${d.band}</span></div></div>
     <div class="forest" role="img" aria-label="${hiTrees} of ${d.votes.length} trees vote high risk">${strip}</div>
     <div class="legend"><span><em style="background:var(--down)"></em>tree leans lower risk</span><span><em style="background:var(--up)"></em>tree leans high risk</span><span><b>${hiTrees} of ${d.votes.length}</b> trees lean high risk; the forest averages them.</span></div>
     <p style="margin:12px 0 0">${esc(d.narrative)}</p>
-    <p class="note">The percentage averages the trees’ class probabilities. It is not a calibrated clinical probability. Bands are display conventions.</p></div>
+    <p class="note">The percentage averages the trees’ class probabilities. It is not a calibrated clinical probability. Bands are display conventions.</p>
+    ${d.history_validation?`<p class="note" role="status"><b>G/P/A mathematical check (${esc(d.history_validation.status)}):</b> ${esc(d.history_validation.message)}</p>`:''}</div>
   <div class="panel"><h2>Why the model said this</h2><p class="sub">SHAP: how many percentage points each input moved this estimate away from the model's baseline of ${pct(d.local.base)}. Baseline plus all effects approximately equals ${pct(d.probability)}.</p>
     <div class="shap">${shapRows}</div>${hidden?`<p class="note">${hidden} more inputs had almost no effect here.</p>`:''}</div>
-  <div class="panel"><h2>What would change it</h2><p class="sub">The model re-run with flagged measurements moved to selected reference values. This shows how the model responds; it is not a treatment target.</p>
-    ${cfRows?`<div class="table-wrap"><table><thead><tr><th>Area</th><th>Change tested</th><th>Estimate afterwards</th><th>Smallest change to drop below 50%</th></tr></thead><tbody>${cfRows}</tbody></table></div><p class="note">All areas together: ${pct(cf.all_normalised)}.</p><p class="note">Where the targets come from: ${[...new Set(cf.rows.flatMap(r=>Object.entries(r.changes).map(([k,v])=>FL(k).label+': '+v.note)))].map(esc).join('. ')}.</p>`:'<p class="note">No modifiable measurements triggered the implemented rules, so no reference-value tests were selected.</p>'}</div>
+  <div class="panel"><h2>What would change it</h2><p class="sub">The model is re-run with flagged measurements moved to project sensitivity-analysis values. These values are not clinical targets.</p>
+    ${cfRows?`<div class="table-wrap"><table><thead><tr><th>Area</th><th>Change tested</th><th>Estimate afterwards</th><th>Smallest change to drop below 50%</th></tr></thead><tbody>${cfRows}</tbody></table></div><p class="note">All areas together: ${pct(cf.all_normalised)}.</p><p class="note">Scenario-value notes: ${[...new Set(cf.rows.flatMap(r=>Object.entries(r.changes).map(([k,v])=>FL(k).label+': '+v.note)))].map(esc).join('. ')}.</p>`:'<p class="note">No modifiable measurements triggered the implemented rules, so no sensitivity scenarios were selected.</p>'}</div>
   <div class="panel"><h2>How sensitive is it?</h2><p class="sub">Predicted risk as one input changes and all others stay as entered. The dot is this patient; the dashed line is 50%.</p><div class="ice">${ice}</div></div>
   <div class="panel"><h2>Guidance and supporting evidence</h2><p class="sub">Source excerpts matched to this assessment. Review these with a clinician.</p>${suggest(d.suggestions)}</div>`;
   const panels=[...$('#out').children].filter(x=>x.classList.contains('panel'));

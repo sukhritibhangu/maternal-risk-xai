@@ -16,10 +16,13 @@ bg = os.path.join(HERE, "model", "background.csv")  # optional: drop your traini
 xai = Explainer(model, bg if os.path.exists(bg) else None)
 store = KnowledgeStore()
 retriever = Retriever(store)
-ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN") or "mysecret123"  # local default; set ADMIN_TOKEN to override
-if os.environ.get("RENDER") and not os.environ.get("ADMIN_TOKEN"):  # never ship the known default to a public host
-    ADMIN_TOKEN = secrets.token_urlsafe(16)
-    print("ADMIN_TOKEN is not set on this host, so a random one is in use and admin sign-in will not work. Set ADMIN_TOKEN.", flush=True)
+ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+if not ADMIN_TOKEN:
+    ADMIN_TOKEN = secrets.token_urlsafe(24)
+    if os.environ.get("RENDER"):
+        print("ADMIN_TOKEN is not set on this host, so a temporary random token is in use and admin sign-in will not work. Set ADMIN_TOKEN.", flush=True)
+    else:
+        print(f"ADMIN_TOKEN is not set; temporary local admin token: {ADMIN_TOKEN}", flush=True)
 
 
 def ai_on(flag):  # an AI feature runs only if the server has a key AND an admin has switched it on
@@ -44,8 +47,40 @@ def parse_inputs(d):
             raise ValueError(f"{f['label']} is required and must be a number.")
         if not f["min"] <= x <= f["max"]:
             raise ValueError(f"{f['label']} must be between {f['min']} and {f['max']} {f['unit']}.")
+        if f["name"] in {"G", "P", "L", "A", "D"} and not x.is_integer():
+            raise ValueError(f"{f['label']} must be a whole-number count.")
         v[f["name"]] = x
+    # For a current pregnancy, G includes the current pregnancy. If P counts
+    # prior pregnancies ending in delivery and A counts prior pregnancy losses,
+    # their exclusive counts cannot exceed all prior pregnancies.
+    if v["P"] + v["A"] + 1 > v["G"]:
+        raise ValueError(
+            "The obstetric counts do not reconcile: for a current pregnancy, "
+            "G must be at least P + A + 1. Check the definitions and entries."
+        )
     return v
+
+
+def obstetric_history_check(v):
+    """Return conditional G/P/A arithmetic and the L/D limitation."""
+    expected_min = v["P"] + v["A"] + 1
+    complete = expected_min == v["G"]
+    if complete:
+        status = "consistent"
+        message = (
+            "G/P/A arithmetic is consistent under the current-pregnancy count "
+            "definitions. L and D are whole-number counts; this form has no "
+            "total-children-born field to reconcile them against."
+        )
+    else:
+        status = "review"
+        message = (
+            "P + A + 1 is below G. At least one previous outcome may be "
+            "unclassified, or the history may be incomplete. Review the record. "
+            "L and D are not compared with P because P counts pregnancy events "
+            "while L and D count children."
+        )
+    return dict(status=status, message=message, formula="P + A + 1 <= G")
 
 
 @app.get("/")
@@ -72,13 +107,16 @@ def assess():
         tri = None
     local = xai.local(v)
     p = local["prediction"]
-    flags = flags_for(v, tri)
+    intrapartum = body.get("intrapartum") is True
+    flags = flags_for(v, tri, intrapartum=intrapartum)
+    history_validation = obstetric_history_check(v)
     top = [c["feature"] for c in local["contribs"][:4]]
     line = f"risk {p:.0%}; " + "; ".join(f["text"] for f in flags)
     cards = build_cards(flags, local["contribs"], retriever, rerank=gemini_rerank if ai_on("ai_rerank") else None, patient_line=line)
     summary = llm_summary(line, cards) if ai_on("ai_summary") else None
     return jsonify(
         probability=p, band=band(p), votes=xai.votes(v), local=local, flags=flags,
+        history_validation=history_validation,
         narrative=narrative(p, local, flags), counterfactuals=xai.counterfactuals(v, flags),
         ice=xai.ice(v, top), suggestions=dict(cards=cards, summary=summary,
                                               summary_status=("ready" if summary else "unavailable" if ai_on("ai_summary") else "off"),
