@@ -216,8 +216,8 @@ REVIEW_SCHEMA = {"type": "OBJECT", "properties": {"cards": {
         "conflict": {"type": "BOOLEAN"},
         "retry_query": {"type": "STRING"},
         "supports": {"type": "ARRAY", "items": {"type": "OBJECT", "properties": {
-            "passage_id": {"type": "STRING"}, "quote": {"type": "STRING"}},
-            "required": ["passage_id", "quote"]}}},
+            "evidence_id": {"type": "STRING"}},
+            "required": ["evidence_id"]}}},
         "required": ["group", "suggestion", "applicability", "gap", "conflict",
                      "retry_query", "supports"]}}}, "required": ["cards"]}
 
@@ -235,13 +235,14 @@ Preserve qualifications, negation, units and populations. Do not infer missing s
 diagnoses or gestational age. Model contributions do not establish clinical abnormalities.
 Do not change the risk estimate or rule alerts. Do not prescribe medication or doses.
 Return every supplied group exactly once. Each suggestion must be <=60 words and
-supported by 1-2 passages. Each support must quote a complete relevant sentence verbatim
-(minimum 20 characters) from that group's candidate passage and use its passage_id.
+supported by 1-2 evidence sentences. Each support must select an evidence_id from
+that group's supplied sentences. Do not write quotations or passage IDs yourself.
+The server inserts the exact original sentence and its parent source citation.
 State applicability and missing context explicitly. If evidence is absent, insufficient,
 contradictory or inapplicable: leave suggestion/supports empty and explain the gap.
 Set conflict=true for conflicting guidance and do not resolve it yourself.
 On the first review only, retry_query may request a better search (<=240 characters).
-After the final search, retry_query must be empty. Never invent passage IDs or quotations."""
+After the final search, retry_query must be empty. Never invent evidence IDs."""
 
 
 def _base_query(card):
@@ -249,12 +250,28 @@ def _base_query(card):
             " ".join(r["text"] for r in card.get("reasons", [])))[:1200]
 
 
+def _evidence_options(passages):
+    """Give AI short IDs; the server owns every quotation and parent source link."""
+    options, payload = {}, []
+    for i, passage in enumerate(passages, 1):
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", passage["text"]) if s.strip()]
+        records = []
+        for sentence in sentences:
+            eid = f"E{len(options) + 1}"
+            options[eid] = dict(passage_id=passage["chunk_id"], quote=sentence)
+            records.append(dict(evidence_id=eid, text=sentence))
+        payload.append(dict(passage_id=f"P{i}", title=passage["title"],
+                            section=passage.get("section", ""), page=passage.get("page"),
+                            sentences=records))
+    return options, payload
+
+
 def _review(context, cards, candidates, final, deadline):
-    areas = [{"group": c["group"], "reason": c.get("reasons", []),
-              "passages": [{"passage_id": p["chunk_id"], "title": p["title"],
-                            "section": p.get("section", ""), "page": p.get("page"),
-                            "text": p["text"]} for p in candidates[c["group"]]]}
-             for c in cards]
+    areas, evidence = [], {}
+    for card in cards:
+        group = card["group"]
+        evidence[group], passages = _evidence_options(candidates[group])
+        areas.append(dict(group=group, reason=card.get("reasons", []), passages=passages))
     data = _generate(REVIEW_SYSTEM, {"context": context, "areas": areas,
                                      "final_search": final}, REVIEW_SCHEMA, deadline)
     rows = data.get("cards")
@@ -279,17 +296,15 @@ def _review(context, cards, candidates, final, deadline):
         supports = row.get("supports")
         if not isinstance(supports, list) or len(supports) > 2:
             raise Unavailable("invalid_ai_response")
-        allowed = {p["chunk_id"]: p for p in candidates[group]}
-        seen = set()
+        selected, seen = [], set()
         for support in supports:
-            if not isinstance(support, dict):
-                raise Unavailable("invalid_ai_response")
-            pid, quote = support.get("passage_id"), support.get("quote")
-            if (not isinstance(pid, str) or pid not in allowed or pid in seen
-                    or not _string(quote, 1800) or len(_normalise(quote)) < 20
-                    or _normalise(quote) not in _normalise(allowed[pid]["text"])):
+            eid = support.get("evidence_id") if isinstance(support, dict) else None
+            if not isinstance(eid, str) or eid not in evidence[group]:
                 raise Unavailable("invalid_evidence")
-            seen.add(pid)
+            if eid not in seen:
+                selected.append(dict(evidence[group][eid]))
+                seen.add(eid)
+        row["supports"] = selected
         if row["conflict"]:
             row["suggestion"], row["supports"] = "", []
         if bool(row["suggestion"].strip()) != bool(row["supports"]):
@@ -356,8 +371,12 @@ def enhance_guidance(cards, retriever, context):
         for card in selected:
             review = reviews[card["group"]]
             index = {p["chunk_id"]: p for p in candidates[card["group"]]}
-            card["passages"] = [dict(index[s["passage_id"]], evidence_quote=s["quote"])
-                                for s in review["supports"]]
+            chosen = {}
+            for support in review["supports"]:
+                pid = support["passage_id"]
+                passage = chosen.setdefault(pid, dict(index[pid], evidence_quotes=[]))
+                passage["evidence_quotes"].append(support["quote"])
+            card["passages"] = list(chosen.values())
             card["ai_guidance"] = {
                 "suggestion": review["suggestion"], "applicability": review["applicability"],
                 "gap": review["gap"], "conflict": review["conflict"]}

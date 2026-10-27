@@ -26,7 +26,7 @@ def review(passage, **changes):
     row = dict(group="Haemoglobin", suggestion="Discuss the source guidance with a clinician.",
                applicability="Pregnancy context; trimester is not supplied.", gap="",
                conflict=False, retry_query="",
-               supports=[dict(passage_id=passage["chunk_id"], quote=passage["text"])])
+               supports=[dict(evidence_id="E1")])
     row.update(changes)
     return {"cards": [row]}
 
@@ -76,17 +76,36 @@ class EvidenceLoopTests(unittest.TestCase):
         self.assertEqual(status["status"], "fallback")
         self.assertEqual(calls.call_count, 3)
 
-    def test_invalid_quote_id_and_cross_group_reference_fall_back(self):
+    def test_unknown_evidence_ids_and_legacy_quotes_fall_back(self):
         for support in [
-            dict(passage_id="invented", quote=self.p["text"]),
-            dict(passage_id=self.p["chunk_id"], quote="Invented unsupported sentence here."),
-            dict(passage_id=True, quote=self.p["text"]),
-            dict(passage_id=self.p["chunk_id"], quote="Anaemia")]:
+            dict(evidence_id="E999"),
+            dict(evidence_id=True),
+            dict(evidence_id=["E1"]),
+            dict(passage_id=self.p["chunk_id"], quote=self.p["text"])]:
             with self.subTest(support=support):
                 original = card()
                 (cards, status), _ = self.run_loop([self.plan, review(self.p, supports=[support])])
                 self.assertEqual(cards, [original])
                 self.assertEqual(status["reason"], "invalid_evidence")
+
+    def test_quote_is_inserted_by_server_even_if_ai_adds_paraphrased_text(self):
+        result = review(self.p, supports=[dict(evidence_id="E1", quote="An invented paraphrase.")])
+        (cards, status), _ = self.run_loop([self.plan, result])
+        self.assertEqual(status["status"], "ready")
+        self.assertEqual(cards[0]["highlights"][0]["text"], self.p["text"])
+        self.assertNotIn("invented paraphrase", json.dumps(cards))
+
+    def test_multiple_sentences_share_one_correct_parent_citation(self):
+        source = doc("decimal", "Haemoglobin below 10.5 g/dL needs context. Review the pregnancy stage and source qualifications.")
+        retriever = rag.Retriever(Store([source]))
+        result = review(self.p, supports=[dict(evidence_id="E1"), dict(evidence_id="E2")])
+        (cards, status), _ = self.run_loop([self.plan, result], retriever)
+        self.assertEqual(status["status"], "ready")
+        self.assertEqual(len(cards[0]["passages"]), 1)
+        highlights = cards[0]["highlights"]
+        self.assertEqual([h["citation"] for h in highlights], ["S1", "S1"])
+        self.assertEqual(highlights[0]["text"], "Haemoglobin below 10.5 g/dL needs context.")
+        self.assertEqual(highlights[1]["text"], "Review the pregnancy stage and source qualifications.")
 
     def test_missing_evidence_and_conflicts_remain_visible(self):
         for changes in [
