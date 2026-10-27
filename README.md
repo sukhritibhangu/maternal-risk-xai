@@ -29,11 +29,13 @@ Tags (feature names, or `general`) boost passages for matching drivers. Scanned 
 To upgrade retrieval to embeddings, replace `Retriever` in `rag.py` (same `rebuild()` / `search()` interface).
 
 ## Optional Gemini features (Flash-Lite), controlled by the admin
-Passage retrieval is always local (TF-IDF text search). Gemini is optional and has two separate switches in the Knowledge base tab:
+With the AI evidence loop off, passage retrieval is local TF-IDF text search. Gemini is optional and has three switches in the Knowledge base tab:
 1. **Write a plain-language summary** from the retrieved passages, with [S#] citations.
 2. **Re-rank the retrieved passages**: Gemini may only pick among passages that were already retrieved; it cannot add or change text.
 
-Both are OFF by default, even if a key is set. They work only when the server has `GEMINI_API_KEY` (optionally `GEMINI_MODEL`, default `gemini-3.5-flash-lite`) AND an admin switches them on.
+3. **AI evidence search and suggestions**: AI-generated questions, hybrid keyword/semantic retrieval, evidence review, one optional search retry and cited suggestion cards (details below). This takes precedence over switches 1 and 2.
+
+All are OFF by default, even if a key is set. They work only when the server has `GEMINI_API_KEY` (optionally `GEMINI_MODEL`, default `gemini-3.5-flash-lite`) AND an admin switches them on.
 Any failure (bad key, quota, odd reply) falls back to the local result. Privacy: when on, the risk percentage, flagged values and approved passages are sent to Google
 for every assessment. On Google's free tier it may use submitted content to improve its products, and human reviewers may read it. Use a paid key and get privacy approval
 before real patient data. Tested with a mock only, not against the live API.
@@ -91,3 +93,73 @@ as outdated after inputs change. Tree counts use the loaded model's returned out
 ## Regression checks
 Run `python -m unittest discover -s . -p 'test_*.py' -v` from the project directory.
 The retrieval checks use small synthetic documents and mocked Gemini responses, not patient records or a live API.
+
+## AI evidence search and suggestion loop
+
+The risk model, its inputs/parameters, SHAP calculations, screening criteria and decision
+thresholds are unchanged. This feature operates only on evidence retrieval and presentation.
+
+### Enable
+1. Set a server-side `GEMINI_API_KEY` and, if needed, `GEMINI_MODEL` for a model supporting
+   structured JSON responses. The existing generation-model default is retained.
+2. Upload relevant sources and review/mark them verified in the Knowledge base tab.
+3. Enable **Gemini: AI evidence search and suggestions**. It is OFF by default and
+   takes precedence over the two legacy summary/rerank switches.
+
+### How it works
+- Existing flags and explanation groups determine the guidance areas, including areas
+  where keyword search found nothing. Gemini creates a focused question for each area.
+- Keyword TF-IDF search and Gemini semantic embeddings retrieve candidates independently.
+  Reciprocal Rank Fusion combines their ranks; the AI loop does not require matching tags.
+- Gemini reviews up to eight initial passages per area, drafts suggestions and selects
+  exact supporting quotations. It can request one refined search; there is at most one retry.
+  Final review sees both old and new candidates (at most sixteen per retried area).
+- Results preserve applicability notes, missing-evidence explanations and conflicting
+  evidence. Conflicting evidence suppresses the generated suggestion for that area.
+- The server rejects invalid groups, unknown/cross-area references, invented quotes,
+  unsupported output shapes and incomplete provider responses. Citation and quote checks
+  do NOT prove that a generated claim follows from the text or establish clinical validity.
+- Failure returns the ordinary source excerpts and existing alerts. Embedding-only failure
+  keeps AI query/review working on keyword results and is explicitly shown in the UI.
+- The loop has at most three generation calls (plan, review, optional final review), a
+  55-second overall work budget and individual network timeouts of at most 15 seconds.
+  Timeouts are best effort at the HTTP/socket layer; deployment timeouts should leave margin.
+
+### Semantic index and privacy
+`GEMINI_EMBEDDING_MODEL` defaults to `gemini-embedding-001`, requesting 768 dimensions.
+Only verified, enabled passages are eligible for the AI loop. Their text is sent to Google
+for embeddings; document vectors are cached in `DATA_DIR/embedding-cache.json` using
+content/model hashes. The cache is written atomically and does not store assessment context
+or query embeddings. It is keyed by the current text/model; removed or unverified documents
+are excluded from retrieval even if an old vector remains in the cache.
+
+Cold indexing is bounded to 128 missing passages per assessment, in batches of 32.
+Large collections may report keyword-only/index-warming until subsequent requests complete
+the index. No additional vector database or Python ML package is required.
+
+When enabled, Google receives measurements, supplied trimester/labour context, existing
+assessment flags, the model class score, generated queries and selected verified passages.
+The original fallback may include unverified sources according to the existing admin setting,
+but those sources are never supplied to the AI loop. Use synthetic data for demonstrations;
+apply the project's existing provider/privacy approval requirements before real patient data.
+No live provider request was used in the automated tests.
+
+### Evidence display and PDF pages
+Chunks preserve whole sentences where possible and retain nearby section headings.
+New PDF uploads store one-based **PDF page positions**, which may differ from printed page
+numbers. Older sources need re-uploading to gain page references. Text edits invalidate
+imported page locations. AI highlights use the selected exact quotation rather than
+automatically taking the paragraph's first sentence.
+
+### Research evaluation
+Keep a reviewed, held-out collection of assessment questions and relevant passages.
+Compare baseline TF-IDF, hybrid retrieval and hybrid retrieval plus the AI loop using
+Recall@k, Precision@3, supported-claim rate, applicability errors, evidence-gap handling,
+latency and API usage. Choose retrieval settings on a separate development set; do not
+report generated quotations/citation validity as a substitute for reviewed claim support.
+
+### Verification
+Run `python -m unittest discover -s . -p 'test_*.py' -v` and `node test_guidance_ui.cjs`.
+The AI tests mock provider responses and embeddings, cover retries and malformed/fabricated
+evidence, and check cache and fallback behaviour. API checks use the repository's saved model
+to compare all prediction/explanation/rule outputs with the loop off and on.

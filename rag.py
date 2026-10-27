@@ -1,6 +1,6 @@
 """Admin-governed RAG: knowledge store -> chunks -> TF-IDF retrieval -> per-driver suggestion cards.
-The Retriever class is the only thing to swap if you later move to dense embeddings
-(e.g. sentence-transformers + FAISS). The store, admin controls and card builder stay the same."""
+Retriever preserves the local TF-IDF baseline. ai_guidance.py adds an optional
+verified-source hybrid search and bounded AI evidence loop over its chunk snapshot."""
 import hashlib, json, os, re, time, uuid, threading, urllib.request
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -15,7 +15,7 @@ LOCK = threading.Lock()
 
 
 # ---------- store
-DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False}  # AI features are OFF until an admin turns them on
+DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False, "ai_loop": False}  # AI features are OFF until an admin turns them on
 
 
 class KnowledgeStore:
@@ -37,15 +37,19 @@ class KnowledgeStore:
         with open(AUDIT, "a", encoding="utf-8") as f:
             f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')}\t{actor}\t{action}\t{detail}\n")
 
-    def add(self, title, source, tags, text, verified=False, actor="admin"):
+    def add(self, title, source, tags, text, verified=False, actor="admin", pages=None):
         d = dict(id=uuid.uuid4().hex[:8], title=title.strip(), source=source.strip(), tags=[t.strip() for t in tags if t.strip()],
                  text=re.sub(r"\n{3,}", "\n\n", text.strip()), verified=verified, enabled=True, added=time.strftime("%Y-%m-%d"))
+        if pages:
+            d["pages"] = pages
         self.data["docs"].append(d); self._save(); self.log(actor, "add", f"{d['id']} {d['title']}")
         return d
 
     def update(self, doc_id, patch, actor="admin"):
         for d in self.data["docs"]:
             if d["id"] == doc_id:
+                if "text" in patch:
+                    d.pop("pages", None)  # A text edit invalidates imported page offsets.
                 for k in ("title", "source", "tags", "text", "verified", "enabled"):
                     if k in patch:
                         d[k] = patch[k]
@@ -69,23 +73,41 @@ class KnowledgeStore:
 
 # ---------- chunking + retrieval
 def chunk(doc, target=110):
-    paras = [p.strip() for p in re.split(r"\n\s*\n", doc["text"]) if p.strip()]
-    out, buf = [], ""
-    for p in paras:
-        if buf and len((buf + " " + p).split()) > target * 1.5:
-            out.append(buf); buf = p
-        else:
-            buf = (buf + "\n\n" + p).strip()
-    if buf:
-        out.append(buf)
-    # Bound even a single long paragraph. Stable IDs survive index rebuilds.
-    bounded = []
-    for text in out:
-        words = text.split()
-        bounded.extend(" ".join(words[i:i + 165]) for i in range(0, len(words), 165))
-    return [dict(doc_id=doc["id"], chunk_id=hashlib.sha256((doc["id"] + t).encode()).hexdigest()[:16],
-                 title=doc["title"], source=doc["source"], verified=doc["verified"],
-                 tags=doc["tags"], text=t) for t in bounded]
+    """Pack complete sentences where possible and retain PDF page/section context."""
+    limit = 165
+    pages = doc.get("pages") or [dict(number=None, text=doc["text"])]
+    passages = []
+    section = ""
+    for page in pages:
+        paras = [p.strip() for p in re.split(r"\n\s*\n", page["text"]) if p.strip()]
+        buf = []
+        def emit():
+            if not buf:
+                return
+            text = " ".join(buf)
+            page_number = page.get("number")
+            identity = f"{doc['id']}:{page_number}:{section}:{text}"
+            passages.append(dict(
+                doc_id=doc["id"], chunk_id=hashlib.sha256(identity.encode()).hexdigest()[:16],
+                title=doc["title"], source=doc["source"], verified=doc["verified"],
+                tags=doc["tags"], text=text, page=page_number, section=section))
+            buf.clear()
+        for para in paras:
+            is_heading = len(para.split()) <= 12 and not re.search(r"[.!?]$", para)
+            if is_heading:
+                emit()
+                section = para
+            for sentence in re.split(r"(?<=[.!?])\s+", para):
+                words = sentence.split()
+                for i in range(0, len(words), limit):
+                    part = " ".join(words[i:i + limit])
+                    if buf and len((" ".join(buf) + " " + part).split()) > limit:
+                        emit()
+                    buf.append(part)
+            if len(" ".join(buf).split()) >= target:
+                emit()
+        emit()
+    return passages
 
 
 def passage_key(p):
@@ -100,7 +122,7 @@ def cite_cards(cards):
             key = passage_key(passage)
             ids.setdefault(key, f"S{len(ids) + 1}")
             passage["citation"] = ids[key]
-        card["highlights"] = [dict(text=re.split(r"(?<=[.!?])\s+", p["text"])[0],
+        card["highlights"] = [dict(text=p.get("evidence_quote") or re.split(r"(?<=[.!?])\s+", p["text"])[0],
                                    citation=p["citation"], verified=p["verified"])
                               for p in card["passages"]]
         card["evidence_status"] = ("missing" if not card["passages"] else
@@ -158,7 +180,7 @@ class Retriever:
 
 
 # ---------- personalised cards
-def build_cards(flags, contribs, retriever, max_cards=5, rerank=None, patient_line=""):
+def build_cards(flags, contribs, retriever, max_cards=5, rerank=None, patient_line="", include_empty=False):
     """One card per driver group. Order: critical flags, then by positive SHAP contribution.
     Each card is tied to the patient's own values and carries source passages."""
     shap_by_group, val_by_feat = {}, {}
@@ -184,7 +206,7 @@ def build_cards(flags, contribs, retriever, max_cards=5, rerank=None, patient_li
         hits = found[:2]  # default order = local TF-IDF ranking
         used.update(passage_key(h) for h in hits)
         level = max([f["level"] for f in g["flags"]], default="info", key=lambda l: LEVEL_RANK[l])
-        if hits or g["flags"]:  # retain every selected flagged group, including borderline evidence gaps
+        if hits or g["flags"] or include_empty:  # retain every selected flagged group, including borderline evidence gaps
             cards.append(dict(group=name, level=level,
                               reasons=[dict(text=f["text"], source_name=f["source_name"], source_url=f["source_url"], note=f.get("note", "")) for f in g["flags"]],
                               targets=[f["target"] for f in g["flags"] if f["target"]],
@@ -206,7 +228,7 @@ def build_cards(flags, contribs, retriever, max_cards=5, rerank=None, patient_li
                 seen.update(passage_key(p) for p in c["passages"])
     used = {passage_key(p) for c in cards for p in c["passages"]}
     gen = retriever.search("antenatal care danger signs when to go to hospital", k=1, tags=["general"], exclude=used)
-    if gen:
+    if gen or include_empty:
         cards.append(dict(group="General care and danger signs", level="info", reasons=[], targets=[], shap=0.0, passages=gen))
     return cite_cards(cards)
 
