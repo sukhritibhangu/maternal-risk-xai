@@ -122,9 +122,10 @@ def cite_cards(cards):
             key = passage_key(passage)
             ids.setdefault(key, f"S{len(ids) + 1}")
             passage["citation"] = ids[key]
-        card["highlights"] = [dict(text=p.get("evidence_quote") or re.split(r"(?<=[.!?])\s+", p["text"])[0],
-                                   citation=p["citation"], verified=p["verified"])
-                              for p in card["passages"]]
+        card["highlights"] = [dict(text=quote, citation=p["citation"], verified=p["verified"])
+                              for p in card["passages"]
+                              for quote in (p.get("evidence_quotes") or
+                                            [p.get("evidence_quote") or re.split(r"(?<=[.!?])\s+", p["text"])[0]])]
         card["evidence_status"] = ("missing" if not card["passages"] else
                                    "verified" if all(p["verified"] for p in card["passages"]) else "unverified")
     return cards

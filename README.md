@@ -112,12 +112,13 @@ thresholds are unchanged. This feature operates only on evidence retrieval and p
 - Keyword TF-IDF search and Gemini semantic embeddings retrieve candidates independently.
   Reciprocal Rank Fusion combines their ranks; the AI loop does not require matching tags.
 - Gemini reviews up to eight initial passages per area, drafts suggestions and selects
-  exact supporting quotations. It can request one refined search; there is at most one retry.
+  short evidence-sentence IDs. The server inserts the original sentences and their parent citations;
+  Gemini does not have to reproduce quotations or long passage hashes. It can request one refined search; there is at most one retry.
   Final review sees both old and new candidates (at most sixteen per retried area).
 - Results preserve applicability notes, missing-evidence explanations and conflicting
   evidence. Conflicting evidence suppresses the generated suggestion for that area.
 - The server rejects invalid groups, unknown/cross-area references, invented quotes,
-  unsupported output shapes and incomplete provider responses. Citation and quote checks
+  unsupported output shapes and incomplete provider responses. Evidence-ID and source-link checks
   do NOT prove that a generated claim follows from the text or establish clinical validity.
 - Failure returns the ordinary source excerpts and existing alerts. Embedding-only failure
   keeps AI query/review working on keyword results and is explicitly shown in the UI.
@@ -163,3 +164,7 @@ Run `python -m unittest discover -s . -p 'test_*.py' -v` and `node test_guidance
 The AI tests mock provider responses and embeddings, cover retries and malformed/fabricated
 evidence, and check cache and fallback behaviour. API checks use the repository's saved model
 to compare all prediction/explanation/rule outputs with the loop off and on.
+
+Evidence selection uses server-provided sentence IDs to avoid rejecting otherwise useful
+answers because Gemini paraphrased a quotation. Unknown IDs are still rejected. Multiple
+sentences from one passage share one citation, and exact source wording stays visible.
