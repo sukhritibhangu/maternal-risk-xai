@@ -4,6 +4,7 @@ import joblib
 from flask import Flask, jsonify, request, send_from_directory
 from features import FEATURES, BY_NAME, flags_for
 from xai import Explainer, band, narrative
+from ai_guidance import enhance_guidance
 from rag import KnowledgeStore, Retriever, build_cards, llm_summary, gemini_rerank
 
 warnings.filterwarnings("ignore")
@@ -91,7 +92,7 @@ def index():
 @app.get("/api/meta")
 def meta():
     return jsonify(features=FEATURES, decision_threshold=0.5, bands=[0.35, 0.65],
-                   llm=ai_on("ai_summary"), gemini_key=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"])
+                   llm=ai_on("ai_summary"), gemini_key=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"], ai_loop=ai_on("ai_loop"))
 
 
 @app.post("/api/assess")
@@ -112,16 +113,27 @@ def assess():
     history_validation = obstetric_history_check(v)
     top = [c["feature"] for c in local["contribs"][:4]]
     line = f"risk {p:.0%}; " + "; ".join(f["text"] for f in flags)
-    cards = build_cards(flags, local["contribs"], retriever, rerank=gemini_rerank if ai_on("ai_rerank") else None, patient_line=line)
-    summary = llm_summary(line, cards) if ai_on("ai_summary") else None
+    loop_requested = bool(store.data["settings"].get("ai_loop"))
+    cards = build_cards(flags, local["contribs"], retriever,
+                        rerank=gemini_rerank if ai_on("ai_rerank") and not loop_requested else None,
+                        patient_line=line, include_empty=loop_requested)
+    loop = dict(status="off", rounds=0, search="keyword", reason="", generated_cards=0)
+    if loop_requested:
+        context = dict(measurements=v, trimester=tri, intrapartum=intrapartum,
+                       model_class_score=p,
+                       model_score_note="Uncalibrated model output, not a diagnosis.",
+                       flags=[dict(feature=f["feature"], text=f["text"],
+                                   level=f["level"]) for f in flags])
+        cards, loop = enhance_guidance(cards, retriever, context)
+    summary = llm_summary(line, cards) if ai_on("ai_summary") and not loop_requested else None
     return jsonify(
         probability=p, band=band(p), votes=xai.votes(v), local=local, flags=flags,
         history_validation=history_validation,
         narrative=narrative(p, local, flags), counterfactuals=xai.counterfactuals(v, flags),
         ice=xai.ice(v, top), suggestions=dict(cards=cards, summary=summary,
-                                              summary_status=("ready" if summary else "unavailable" if ai_on("ai_summary") else "off"),
-                                              ai=dict(summary=bool(summary), rerank=any(c.get("ai_ranked") for c in cards)),
-                                              only_verified=store.data["settings"]["only_verified"]))
+                                              summary_status=("ready" if summary else "unavailable" if ai_on("ai_summary") and not loop_requested else "off"),
+                                              loop=loop, ai=dict(summary=bool(summary), rerank=any(c.get("ai_ranked") for c in cards)),
+                                              only_verified=(loop["status"] == "ready" or store.data["settings"]["only_verified"])))
 
 
 @app.get("/api/global")
@@ -146,8 +158,10 @@ def _extract(file):
     name, raw = file.filename.lower(), file.read()
     if name.endswith(".pdf"):
         from pypdf import PdfReader
-        return "\n\n".join((p.extract_text() or "") for p in PdfReader(io.BytesIO(raw)).pages)
-    return raw.decode("utf-8", errors="ignore")
+        pages = [dict(number=i, text=p.extract_text() or "")
+                 for i, p in enumerate(PdfReader(io.BytesIO(raw)).pages, 1)]
+        return "\n\n".join(p["text"] for p in pages), pages
+    return raw.decode("utf-8", errors="ignore"), None
 
 
 @app.post("/api/admin/kb")
@@ -155,13 +169,15 @@ def _extract(file):
 def kb_add():
     f = request.form if request.files or request.form else (request.get_json(silent=True) or {})
     text = f.get("text", "")
+    pages = None
     if "file" in request.files:
-        text = _extract(request.files["file"]) or text
+        extracted, pages = _extract(request.files["file"])
+        text = extracted or text
     title = f.get("title") or (request.files["file"].filename if "file" in request.files else "")
     if not text.strip() or not title.strip():
         return jsonify(error="A title and some text (or a .txt/.md/.pdf file) are required."), 400
     tags = [t for t in str(f.get("tags", "")).split(",")] if not isinstance(f.get("tags"), list) else f["tags"]
-    d = store.add(title, f.get("source", "Admin upload"), tags, text, verified=str(f.get("verified", "")).lower() in ("1", "true", "on"))
+    d = store.add(title, f.get("source", "Admin upload"), tags, text, verified=str(f.get("verified", "")).lower() in ("1", "true", "on"), pages=pages)
     retriever.rebuild()
     return jsonify(d), 201
 
