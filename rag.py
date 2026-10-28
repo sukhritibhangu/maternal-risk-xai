@@ -15,7 +15,7 @@ LOCK = threading.Lock()
 
 
 # ---------- store
-DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False, "ai_loop": False}  # AI features are OFF until an admin turns them on
+DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False, "ai_loop": False, "chatbot": False}  # AI features are OFF until an admin turns them on
 
 
 class KnowledgeStore:

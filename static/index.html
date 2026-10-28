@@ -97,6 +97,7 @@ main{max-width:1440px;padding:28px 32px 64px}.intro{margin:0 0 24px}.eyebrow{fon
 @media print{header,nav,#form,.intro,.result-nav,.print-button,.stale{display:none!important}.grid{display:block}.result-view[hidden]{display:flex!important}.panel,.card{box-shadow:none;break-inside:avoid}.tab:not(.on){display:none}main{padding:0}.evidence{display:block}body{background:white;color:black}}
 
 </style>
+<link rel="stylesheet" href="/static/chat.css">
 </head>
 <body>
 <header>
@@ -137,6 +138,45 @@ main{max-width:1440px;padding:28px 32px 64px}.intro{margin:0 0 24px}.eyebrow{fon
 </section>
 </main>
 
+<button id="chat-launch" class="chat-launch" type="button" aria-controls="chat-panel" aria-expanded="false">
+  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11.5a8 8 0 0 1-8 8H5l-3 3v-11a9 9 0 0 1 18 0Z"/><path d="M7 10h8M7 14h5"/></svg>
+  Ask Matcare
+</button>
+<section id="chat-panel" class="chat-panel" role="dialog" aria-modal="false" aria-labelledby="chat-title" hidden>
+  <div class="chat-top">
+    <div><h2 id="chat-title">Ask Matcare</h2><p>Assessment explanations · Verified sources</p></div>
+    <div class="chat-top-actions">
+      <button id="chat-clear" class="btn s" type="button">New chat</button>
+      <button id="chat-close" class="btn s chat-close" type="button" aria-label="Close chat">×</button>
+    </div>
+  </div>
+  <div class="chat-settings">
+    <label><input id="chat-include" type="checkbox" disabled> Include current assessment</label>
+    <p id="chat-context-label">Run an assessment to make its explanation available.</p>
+  </div>
+  <div id="chat-critical" class="chat-critical" role="status" hidden></div>
+  <div id="chat-messages" class="chat-messages" role="log" aria-label="Chat conversation" aria-live="polite" aria-relevant="additions">
+    <div class="chat-welcome" id="chat-welcome">
+      <h3>What would you like to understand?</h3>
+      <p>Ask about the model explanation or find answers in verified documents. Each answer links to its supporting evidence.</p>
+      <div class="chat-prompts">
+        <button class="btn" type="button" data-chat-prompt="Explain this assessment" data-chat-assessment>Explain this assessment</button>
+        <button class="btn" type="button" data-chat-prompt="What do the SHAP contributions mean?">What do the SHAP contributions mean?</button>
+        <button class="btn" type="button" data-chat-prompt="What do the verified sources say about antenatal care?">Ask about antenatal care</button>
+      </div>
+    </div>
+  </div>
+  <div id="chat-status" class="chat-status" role="status">Checking chat availability…</div>
+  <form id="chat-form" class="chat-form">
+    <label for="chat-question" class="note">Your question</label>
+    <div class="chat-compose"><textarea id="chat-question" class="t" rows="2" maxlength="1000" placeholder="Ask about a result or source…" required disabled></textarea><button id="chat-send" class="btn" type="submit" disabled>Send</button></div>
+    <p id="chat-error" class="chat-error" role="alert"></p>
+    <p class="chat-privacy">Sent to Gemini: questions, recent chat and any assessment you choose to include.</p>
+    <details class="chat-privacy"><summary>Privacy and limits</summary><p>Avoid identifying details. Chat stays in this tab until cleared or reloaded. Research support; not diagnosis or emergency care.</p></details>
+  </form>
+</section>
+<script src="/static/chat.js"></script>
+
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pct=(x,d=0)=>(x*100).toFixed(d)+'%', pts=x=>(x>0?'+':x<0?'−':'')+Math.abs(x*100).toFixed(1)+' pts';
@@ -156,6 +196,7 @@ document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
 // form
 async function init(){
   META=await api('/api/meta');
+  window.dispatchEvent(new CustomEvent('matcare:meta',{detail:META}));
   let h='',g='';
   for(const f of META.features){
     if(f.group!==g){ if(g)h+='</fieldset>'; h+=`<fieldset><legend>${esc(f.group)}</legend>`; g=f.group }
@@ -177,12 +218,14 @@ async function api(url, options={}){
 }
 let hasResult=false;
 $('#form').addEventListener('input',()=>{
+  window.dispatchEvent(new Event('matcare:assessment-stale'));
   if(hasResult&&!$('#stale'))$('#out').insertAdjacentHTML('afterbegin','<div class="stale" id="stale" role="status">Inputs changed. Assess again to update these results.</div>');
 });
 $('#form').onsubmit=async e=>{
   e.preventDefault(); if(!META)return; $('#ferr').textContent='';
   const button=$('#form button[type=submit]'); if(button.disabled)return;
   const body={}; META.features.forEach(f=>body[f.name]=$('#i_'+f.name).value); body.trimester=$('#i_trimester').value; body.intrapartum=$('#i_intrapartum').checked;
+  window.dispatchEvent(new Event('matcare:assessment-stale'));
   button.disabled=true;button.textContent='Assessing and finding guidance…';$('#out').setAttribute('aria-busy','true');
   $('#form').querySelectorAll('input,select,[data-p]').forEach(el=>el.disabled=true);
   try{const d=await api('/api/assess',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});render(d);hasResult=true;}
@@ -194,6 +237,7 @@ $('#form').onsubmit=async e=>{
 const FL=n=>META.features.find(f=>f.name===n);
 const valu=(n,v)=>{const f=FL(n);return `${+v.toFixed(1)}${f.unit?' '+f.unit:''}`};
 function render(d){
+  window.dispatchEvent(new CustomEvent('matcare:assessment',{detail:{token:d.assessment_token,score:pct(d.probability),critical:d.flags.filter(f=>f.level==='critical').map(f=>f.text)}}));
   const crit=d.flags.filter(f=>f.level==='critical');
   const strip=d.votes.slice().sort((a,b)=>a-b).map(v=>`<i style="height:${20+Math.abs(v-.5)*52}px;background:var(--${v>.5?'up':'down'});opacity:${.45+Math.abs(v-.5)}"></i>`).join('');
   const hiTrees=d.votes.filter(v=>v>.5).length;
@@ -302,14 +346,16 @@ async function loadKB(){
   try{await loadKBContent()}catch(e){$('#kbLogin').style.display='block';$('#lerr').textContent=e.message}
 }
 async function loadKBContent(){
+  const currentMeta=await api('/api/meta');window.dispatchEvent(new CustomEvent('matcare:meta',{detail:currentMeta}));
   const r=await fetch('/api/admin/kb',{headers:H()}); if(!r.ok){TOKEN='';sessionStorage.removeItem('adm');$('#kbLogin').style.display='block';$('#kbAdmin').style.display='none';$('#lerr').textContent='Your admin session is not valid. Sign in again.';return}
   const d=await r.json(); $('#kbLogin').style.display='none'; const A=$('#kbAdmin'); A.style.display='flex';
   A.innerHTML=`<div class="panel"><div class="row"><div><h2>Sources used for suggestions</h2><p class="sub" style="margin:0">${d.docs.length} documents, ${d.chunks} searchable passages in use.</p></div>
     <div class="col" style="margin-left:auto;gap:6px"><label class="row"><input type="checkbox" id="onlyv" ${d.settings.only_verified?'checked':''}> Only use verified sources</label>
+      <label class="row"><input type="checkbox" id="chatbot" ${d.settings.chatbot?'checked':''} ${d.gemini_key?'':'disabled'}> Gemini: assessment and document chatbot</label>
       <label class="row"><input type="checkbox" id="ailoop" ${d.settings.ai_loop?'checked':''} ${d.gemini_key?'':'disabled'}> Gemini: AI evidence search and suggestions</label>
       <label class="row"><input type="checkbox" id="aisum" ${d.settings.ai_summary?'checked':''} ${d.gemini_key?'':'disabled'}> Gemini: write a plain-language summary</label>
       <label class="row"><input type="checkbox" id="airank" ${d.settings.ai_rerank?'checked':''} ${d.gemini_key?'':'disabled'}> Gemini: re-rank the retrieved passages</label></div></div>
-    <p class="note" style="margin:8px 0 0">${d.gemini_key?'A Gemini key is set on the server. AI features are off until enabled. The AI evidence loop uses verified sources only and takes precedence over the two older switches. When enabled, measurements, pregnancy context, assessment flags and source passages are sent to Google. Verified document text is also sent for semantic indexing and source embeddings are cached locally. Use a paid key and get privacy approval first.':'No GEMINI_API_KEY is set on the server, so the Gemini switches are disabled. Retrieval uses the local text search only.'}</p>
+    <p class="note" style="margin:8px 0 0">${d.gemini_key?'A Gemini key is set on the server. AI features are off until enabled. The AI evidence loop uses verified sources only and takes precedence over the two older switches. When enabled, measurements, pregnancy context, assessment flags and source passages are sent to Google. Verified document text is also sent for semantic indexing and source embeddings are cached locally. The chatbot has a separate switch; questions, recent conversation and any assessment the user chooses to include are sent to Gemini. Use a paid key and get privacy approval first.':'No GEMINI_API_KEY is set on the server, so the Gemini switches are disabled. Retrieval uses the local text search only.'}</p>
     ${d.docs.map(x=>`<div class="kb"><div><h4>${esc(x.title)} <span class="chip ${x.verified?'ver':'unv'}">${x.verified?'Verified':'Unverified'}</span>${x.enabled?'':' <span class="chip info">Disabled</span>'}</h4><div class="note">${esc(x.source)} · tags: ${esc(x.tags.join(', ')||'none')} · added ${esc(x.added)}</div><details><summary class="note" style="cursor:pointer">Read text</summary><p style="white-space:pre-wrap;font-size:13.5px;max-width:80ch">${esc(x.text)}</p></details></div>
     <div class="row" style="align-self:start"><button class="btn s" data-a="v" data-id="${x.id}" data-v="${x.verified}">${x.verified?'Remove verification':'Mark verified'}</button><button class="btn s" data-a="e" data-id="${x.id}" data-v="${x.enabled}">${x.enabled?'Disable':'Enable'}</button><button class="btn s d" data-a="x" data-id="${x.id}">Delete</button></div></div>`).join('')}</div>
   <div class="panel"><h2>Add a source</h2><p class="sub">Paste text or upload a .txt, .md or .pdf (for example a book). Tags link passages to inputs: ${META.features.map(f=>f.name).join(', ')}, general.</p>
@@ -317,7 +363,7 @@ async function loadKBContent(){
     <textarea class="t" name="text" rows="5" placeholder="Paste text here, or choose a file below" aria-label="Text"></textarea><input type="file" name="file" accept=".txt,.md,.pdf" aria-label="File"><label class="row"><input type="checkbox" name="verified"> Mark as verified</label>
     <div><button class="btn" type="submit">Add source</button></div><p class="err" id="aerr" role="alert"></p></form></div>
   <div class="panel"><h2>Test retrieval</h2><p class="sub">See which passages a question would pull from the sources currently in use.</p><div class="row"><input class="t" id="q" placeholder="e.g. severe headache and swelling" style="max-width:420px" aria-label="Test query"><button class="btn" id="qb">Search</button></div><div id="qr"></div></div>`;
-  [['onlyv','only_verified'],['ailoop','ai_loop'],['aisum','ai_summary'],['airank','ai_rerank']].forEach(([id,k])=>{$('#'+id).onchange=async e=>{await fetch('/api/admin/settings',{method:'PUT',headers:H(),body:JSON.stringify({[k]:e.target.checked})});loadKB()}});
+  [['onlyv','only_verified'],['chatbot','chatbot'],['ailoop','ai_loop'],['aisum','ai_summary'],['airank','ai_rerank']].forEach(([id,k])=>{$('#'+id).onchange=async e=>{await fetch('/api/admin/settings',{method:'PUT',headers:H(),body:JSON.stringify({[k]:e.target.checked})});loadKB()}});
   A.querySelectorAll('[data-a]').forEach(b=>b.onclick=async()=>{const id=b.dataset.id,a=b.dataset.a,v=b.dataset.v==='true';
     if(a==='x'){if(!confirm('Delete this source permanently?'))return;await fetch('/api/admin/kb/'+id,{method:'DELETE',headers:H()})}
     else await fetch('/api/admin/kb/'+id,{method:'PATCH',headers:H(),body:JSON.stringify(a==='v'?{verified:!v}:{enabled:!v})});loadKB()});
