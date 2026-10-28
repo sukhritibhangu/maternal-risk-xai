@@ -18,6 +18,7 @@ Set a private `ADMIN_TOKEN` environment variable before deployment. If it is uns
 | `features.py` | Input bounds, confirmed feature meanings, scenario values, and source-linked screening flags. **Edit criteria here.** |
 | `xai.py` | SHAP (local + global), per-tree votes, what-if counterfactuals, ICE curves |
 | `rag.py` | Knowledge store, chunking, retrieval, per-driver suggestion cards, optional LLM summary |
+| `chatbot.py` | Verified-document chat and signed assessment explanations |
 | `seed_kb.py` | Starter guidance (loaded as **unverified**) |
 | `static/index.html` | Frontend (Assess, Model, Knowledge base tabs) |
 | `knowledge/store.json` | Live knowledge base (created on first run). `audit.log` records every admin action |
@@ -26,14 +27,15 @@ Set a private `ADMIN_TOKEN` environment variable before deployment. If it is uns
 Knowledge base tab -> sign in -> Add a source -> upload the PDF/TXT, set tags, tick *Mark as verified*.
 Then tick *Only use verified sources* and delete or disable the starter documents. Suggestions will then come only from the book.
 Tags (feature names, or `general`) boost passages for matching drivers. Scanned PDFs need OCR first.
-To upgrade retrieval to embeddings, replace `Retriever` in `rag.py` (same `rebuild()` / `search()` interface).
+Enable the AI evidence loop or chatbot to use the implemented hybrid keyword/embedding retrieval.
 
 ## Optional Gemini features (Flash-Lite), controlled by the admin
-With the AI evidence loop off, passage retrieval is local TF-IDF text search. Gemini is optional and has three switches in the Knowledge base tab:
+With the AI evidence loop off, passage retrieval is local TF-IDF text search. Gemini is optional and has four switches in the Knowledge base tab:
 1. **Write a plain-language summary** from the retrieved passages, with [S#] citations.
 2. **Re-rank the retrieved passages**: Gemini may only pick among passages that were already retrieved; it cannot add or change text.
 
 3. **AI evidence search and suggestions**: AI-generated questions, hybrid keyword/semantic retrieval, evidence review, one optional search retry and cited suggestion cards (details below). This takes precedence over switches 1 and 2.
+4. **Assessment and document chatbot**: a separate Ask Matcare panel for existing assessment explanations and questions grounded in verified documents.
 
 All are OFF by default, even if a key is set. They work only when the server has `GEMINI_API_KEY` (optionally `GEMINI_MODEL`, default `gemini-3.5-flash-lite`) AND an admin switches them on.
 Any failure (bad key, quota, odd reply) falls back to the local result. Privacy: when on, the risk percentage, flagged values and approved passages are sent to Google
@@ -168,3 +170,56 @@ to compare all prediction/explanation/rule outputs with the loop off and on.
 Evidence selection uses server-provided sentence IDs to avoid rejecting otherwise useful
 answers because Gemini paraphrased a quotation. Unknown IDs are still rejected. Multiple
 sentences from one passage share one citation, and exact source wording stays visible.
+
+
+## Assessment and document chatbot
+
+The **Ask Matcare** panel answers application/assessment questions and questions about
+verified, enabled documents. It uses the existing Gemini key. An administrator must
+turn on **Gemini: assessment and document chatbot** in Knowledge base; this switch is
+separate from the AI evidence loop and is off by default.
+
+- Questions about documents use the same hybrid retrieval, without requiring tag matches.
+- Assessment context is optional. After running an assessment, select **Include current
+  assessment** (or the explicitly named assessment prompt). The server signs facts from
+  the existing result; chat does not run, retrain, change, or call the risk model.
+- Editing inputs or running a new assessment clears old chat context and conversation.
+  Signed assessment context expires after one hour. Refreshing the page clears chat.
+- Each answer paragraph must select known evidence-sentence IDs. The server inserts
+  exact quotations, document links and PDF page positions. Medical-guidance paragraphs
+  require document evidence; application facts explain software behaviour only.
+- Missing evidence, provider failures and invalid responses produce a clear gap or source
+  excerpts. Citation validation is structural: it does not establish that every generated
+  claim is supported. Review applicability and claim support separately for research.
+- Up to three recent question/answer pairs are sent as conversation context, never as
+  authoritative evidence. Questions are limited to 1,000 characters. The endpoint allows
+  20 requests per minute across this process and two concurrent chat requests. These are
+  demo resource limits, not a distributed abuse-prevention system. Keep one worker.
+- Each answer uses at most two generation calls and a 45-second work budget. Semantic
+  embeddings share the existing verified-document cache. No new dependencies are required.
+
+Questions, recent chat messages and opted-in assessment facts are sent to Gemini.
+Verified source text may also be sent for retrieval/generation. The app does not save
+conversation history to its knowledge store or audit log; browser tab memory retains it
+until cleared/reloaded. Provider retention is governed by the configured Gemini service.
+Use synthetic demonstrations and obtain the necessary privacy approval for real data.
+
+The signing key is randomly generated at startup unless CHAT_CONTEXT_SECRET is set to a
+strong private environment value. Restarting with a new key invalidates older contexts;
+users can assess again. Signed tokens are not encrypted and should not be shared or logged.
+
+### Storage on Render
+Knowledge documents, verification status, AI switches and cached embeddings live under
+DATA_DIR. Render's free service has ephemeral local storage: a restart/redeploy can reset
+these to the unverified seed documents and disabled AI defaults. A successful deploy does
+not mean the AI switches or document approvals survived. Use a persistent mounted disk
+and set DATA_DIR to its mount path, or implement an external durable store. The included
+render.yaml describes a paid Starter disk configuration; it does not upgrade an already
+created free service. Never automatically mark seeded sources verified to bypass this.
+
+### Chat verification
+Run the Python unittest suite and node test_guidance_ui.cjs. test_chatbot.py covers
+verified-only retrieval, server-owned citations, missing evidence, invalid outputs,
+signed/expired/forged assessment contexts, request limits, and disabled-feature behaviour.
+The provider is mocked in automated tests; validate live answer quality on a reviewed
+research question set before reporting evaluation results.

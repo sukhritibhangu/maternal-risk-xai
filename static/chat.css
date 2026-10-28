@@ -1,0 +1,40 @@
+.chat-launch{position:fixed;right:24px;bottom:24px;z-index:30;display:flex;align-items:center;gap:9px;background:var(--teal);color:var(--panel);border:0;border-radius:99px;padding:13px 20px;font:inherit;font-weight:700;box-shadow:0 6px 26px #10222b26;cursor:pointer}
+.chat-launch svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8}
+.chat-panel{position:fixed;right:24px;bottom:88px;width:440px;max-width:calc(100vw - 32px);height:min(700px,calc(100dvh - 115px));z-index:31;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:18px;background:var(--panel);box-shadow:0 12px 50px #10222b30;overflow:hidden}
+.chat-panel[hidden]{display:none!important}
+.chat-top{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);background:var(--teal-bg);gap:12px}
+.chat-top h2{margin:0;font-size:17px}.chat-top p{margin:2px 0 0;color:var(--muted);font-size:11px}
+.chat-top-actions{display:flex;gap:6px}.chat-close{min-width:32px;min-height:32px}
+.chat-settings{padding:11px 18px;border-bottom:1px solid var(--line);font-size:12px}
+.chat-settings label{display:flex;align-items:center;gap:8px;font-weight:600}
+.chat-settings p{margin:5px 0 0;color:var(--muted);font-size:11px}
+.chat-settings input{accent-color:var(--teal)}
+.chat-critical{background:var(--up-bg);color:var(--up);padding:10px 18px;font-size:12px;border-bottom:1px solid var(--line)}
+.chat-critical[hidden]{display:none}
+.chat-messages{flex:1;min-height:90px;overflow-y:auto;padding:18px;scroll-behavior:smooth;overscroll-behavior:contain}
+.chat-welcome h3{font-size:19px;margin:0 0 7px;letter-spacing:-.03em}
+.chat-welcome p{font-size:13px;margin:0 0 14px;color:var(--muted)}
+.chat-prompts{display:grid;gap:7px}.chat-prompts button{text-align:left;font-size:12px;padding:9px 11px}
+.chat-message{margin-bottom:18px;font-size:13px;overflow-wrap:anywhere}
+.chat-message-label{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 6px}
+.chat-message.user .chat-bubble{background:var(--teal-bg);border-radius:12px 12px 3px 12px;padding:10px 13px}
+.chat-bubble p{margin:0 0 10px;white-space:pre-wrap}.chat-bubble p:last-child{margin-bottom:0}
+.chat-ref{border:0;background:var(--teal-bg);color:var(--teal);font:inherit;font-size:10px;font-weight:700;border-radius:4px;padding:1px 5px;margin-left:5px;cursor:pointer}
+.chat-evidence{font-size:11px;border-top:1px solid var(--line);margin-top:10px;padding-top:9px}
+.chat-evidence summary{color:var(--teal);font-weight:600;cursor:pointer}
+.chat-source{margin-top:10px;border-left:2px solid var(--teal);padding-left:10px;scroll-margin-top:12px}
+.chat-source h4{font-size:12px;margin:0 0 3px}.chat-source p{font-size:11px;margin:4px 0}
+.chat-source blockquote{margin:7px 0;padding:7px;background:var(--bg);white-space:pre-wrap}
+.chat-status{font-size:11px;color:var(--muted);padding:0 18px 8px;min-height:24px}
+.chat-form{padding:12px 18px 15px;border-top:1px solid var(--line)}
+.chat-compose{display:flex;gap:8px;align-items:end}
+.chat-compose textarea{resize:none;min-height:62px;max-height:120px;font-size:13px;line-height:1.45}
+.chat-compose button{padding:10px 12px;font-size:12px;min-height:42px;background:var(--teal);color:var(--panel);border-color:var(--teal)}
+.chat-privacy{font-size:10px;color:var(--muted);margin:7px 0 0;line-height:1.5}
+.chat-error{font-size:12px;color:var(--up);margin:5px 0 0}.chat-error:empty{display:none}
+@media(prefers-color-scheme:dark){.chat-launch,.chat-compose button{color:#10222b}}
+@media(max-width:600px){.chat-launch{right:16px;bottom:16px;padding:11px 16px}.chat-panel{right:8px;bottom:76px;max-width:calc(100vw - 16px);width:440px;height:calc(100dvh - 92px);border-radius:14px}.chat-top{padding:12px 14px}.chat-messages{padding:14px}}
+@media(prefers-reduced-motion:reduce){.chat-messages{scroll-behavior:auto}}
+@media print{.chat-launch,.chat-panel{display:none!important}}
+
+.chat-top-actions{flex-shrink:0}.chat-top-actions button{white-space:nowrap}.chat-privacy summary{cursor:pointer;color:var(--teal)}.chat-privacy p{margin:5px 0 0}
