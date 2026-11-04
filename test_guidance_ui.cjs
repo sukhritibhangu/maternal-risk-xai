@@ -36,3 +36,14 @@ const fallback = context.renderSuggestions({cards:[],only_verified:false,
 assert(fallback.includes('Add and verify source documents'));
 assert(fallback.includes('Showing the original source excerpts'));
 console.log('Guidance UI checks passed: citations, escaping, page labels and fallback.');
+
+vm.runInContext(';globalThis.searchUI=renderSearchResults;', context);
+const searchHtml = context.searchUI({search:{ai_status:'ready',mode:'hybrid',rounds:1,verified_only:true,interpreted_query:'<img src=x>',corrections:[{original:'heaadache',replacement:'headache'}]},results:[{...p,source:'javascript:alert(1)',text:'long exact source '.repeat(45)+'END'}]});
+assert(searchHtml.includes('Verified sources only'));
+assert(searchHtml.includes('heaadache'));
+assert(searchHtml.includes('&lt;img'));
+assert(searchHtml.includes('END'));
+assert(!searchHtml.includes('href="javascript:'));
+assert(!html.includes('static/chat.js'));
+assert(context.searchUI({results:[],search:{}}).includes('No applicable passage'));
+console.log('Query UI checks passed: exact full passages, verification, escaping and empty state.');

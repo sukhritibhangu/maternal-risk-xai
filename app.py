@@ -2,11 +2,10 @@
 import hmac, io, os, secrets, warnings
 import joblib
 from flask import Flask, jsonify, request, send_from_directory
-from itsdangerous import URLSafeTimedSerializer, BadSignature
-from chatbot import ChatLimit, validate_message, assessment_snapshot, answer_question
 from features import FEATURES, BY_NAME, flags_for
 from xai import Explainer, band, narrative
 from ai_guidance import enhance_guidance
+from query_retrieval import search_sources
 from rag import KnowledgeStore, Retriever, build_cards, llm_summary, gemini_rerank
 
 warnings.filterwarnings("ignore")
@@ -26,11 +25,6 @@ if not ADMIN_TOKEN:
         print("ADMIN_TOKEN is not set on this host, so a temporary random token is in use and admin sign-in will not work. Set ADMIN_TOKEN.", flush=True)
     else:
         print(f"ADMIN_TOKEN is not set; temporary local admin token: {ADMIN_TOKEN}", flush=True)
-
-
-chat_signer = URLSafeTimedSerializer(os.environ.get("CHAT_CONTEXT_SECRET") or secrets.token_urlsafe(32),
-                                      salt="matcare-assessment-v1")
-chat_limit = ChatLimit()
 
 
 def ai_on(flag):  # an AI feature runs only if the server has a key AND an admin has switched it on
@@ -99,8 +93,7 @@ def index():
 @app.get("/api/meta")
 def meta():
     return jsonify(features=FEATURES, decision_threshold=0.5, bands=[0.35, 0.65],
-                   llm=ai_on("ai_summary"), gemini_key=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"], ai_loop=ai_on("ai_loop"),
-                   chatbot=ai_on("chatbot"))
+                   llm=ai_on("ai_summary"), gemini_key=bool(os.environ.get("GEMINI_API_KEY")), only_verified=store.data["settings"]["only_verified"], ai_loop=ai_on("ai_loop"))
 
 
 @app.post("/api/assess")
@@ -135,7 +128,6 @@ def assess():
         cards, loop = enhance_guidance(cards, retriever, context)
     summary = llm_summary(line, cards) if ai_on("ai_summary") and not loop_requested else None
     return jsonify(
-        assessment_token=chat_signer.dumps(assessment_snapshot(local, flags, tri, intrapartum)),
         probability=p, band=band(p), votes=xai.votes(v), local=local, flags=flags,
         history_validation=history_validation,
         narrative=narrative(p, local, flags), counterfactuals=xai.counterfactuals(v, flags),
@@ -143,38 +135,6 @@ def assess():
                                               summary_status=("ready" if summary else "unavailable" if ai_on("ai_summary") and not loop_requested else "off"),
                                               loop=loop, ai=dict(summary=bool(summary), rerank=any(c.get("ai_ranked") for c in cards)),
                                               only_verified=(loop["status"] == "ready" or store.data["settings"]["only_verified"])))
-
-
-@app.post("/api/chat")
-def chat():
-    if not ai_on("chatbot"):
-        return jsonify(error="Chat is unavailable. An administrator must enable it and configure Gemini."), 503
-    if request.content_length and request.content_length > 36000:
-        return jsonify(error="This question or conversation is too large. Start a new chat."), 413
-    try:
-        message, history, token = validate_message(request.get_json(silent=True))
-    except ValueError as exc:
-        return jsonify(error=str(exc)), 400
-    snapshot = None
-    if token:
-        try:
-            snapshot = chat_signer.loads(token, max_age=3600)
-        except BadSignature:
-            return jsonify(error="Assessment context expired or is invalid. Run the assessment again.",
-                           code="assessment_expired"), 400
-    if not chat_limit.acquire():
-        return jsonify(error="Chat is busy. Please try again shortly."), 429
-    try:
-        result = answer_question(message, history, retriever, snapshot)
-        result["critical_alerts"] = (snapshot or {}).get("critical_alerts", [])
-        response = jsonify(result)
-        response.headers["Cache-Control"] = "no-store"
-        return response
-    except Exception as exc:
-        app.logger.error("Chat processing failed (%s).", type(exc).__name__)
-        return jsonify(error="Chat could not complete this request. Please try again."), 500
-    finally:
-        chat_limit.release()
 
 
 @app.get("/api/global")
@@ -248,8 +208,14 @@ def settings():
 @app.post("/api/admin/search")
 @admin_only
 def test_search():
-    q = (request.get_json(force=True) or {}).get("query", "")
-    return jsonify(results=retriever.search(q, k=4, min_score=0.02))
+    body = request.get_json(silent=True)
+    q = body.get("query") if isinstance(body, dict) else None
+    if not isinstance(q, str) or not q.strip() or len(q) > 350:
+        return jsonify(error="Enter a search question of 1 to 350 characters."), 400
+    use_ai = ai_on("ai_loop") and body.get("use_ai", True) is True
+    response = jsonify(search_sources(q.strip(), retriever, use_ai=use_ai))
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 if __name__ == "__main__":
