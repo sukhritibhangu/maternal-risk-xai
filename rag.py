@@ -15,7 +15,7 @@ LOCK = threading.Lock()
 
 
 # ---------- store
-DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False, "ai_loop": False, "chatbot": False}  # AI features are OFF until an admin turns them on
+DEFAULT_SETTINGS = {"only_verified": False, "ai_summary": False, "ai_rerank": False, "ai_loop": False}  # AI features are OFF until an admin turns them on
 
 
 class KnowledgeStore:
@@ -23,7 +23,8 @@ class KnowledgeStore:
         self.data = {"settings": dict(DEFAULT_SETTINGS), "docs": []}
         if os.path.exists(STORE):
             self.data = json.load(open(STORE, encoding="utf-8"))
-            self.data["settings"] = {**DEFAULT_SETTINGS, **self.data.get("settings", {})}
+            self.data["settings"] = {k: self.data.get("settings", {}).get(k, v)
+                                     for k, v in DEFAULT_SETTINGS.items()}
         else:
             from seed_kb import SEED, SOURCE
             for d in SEED:
